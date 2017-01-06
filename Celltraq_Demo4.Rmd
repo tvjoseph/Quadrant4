@@ -1,0 +1,666 @@
+---
+JMJPFU: "Celltraq_Demo_4"
+output: html_notebook
+---
+
+This is the next level of analysis for the celltraq data. In this analysis, we will be looking at the continuous drop in conductance feature extraction. The feature we will be looking at is where the conductance drops with respect to a certain date and then in the subsequent dates the new values start from the point it has dropped to.
+
+```{r}
+
+# Take one sample data
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% list2_1000[8]) %>% filter(measure=="Conductance")
+
+# Some visualisation
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+We need to take a chunk of data corresponding to each date and look at the drop in conductance. Let us look at each unique date formats and do the same method we used for extracting the features for conductance
+
+```{r}
+
+unique(Temp_bat_consol$Date) 
+
+# "2013-03-01"
+
+# Taking only readings for one single date
+
+Temp_bat_consol_1 <- Temp_bat_consol %>% filter(Date == "2013-03-01") 
+# Some visualisation
+
+q5 <- ggplot(data=Temp_bat_consol_1,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+For doing the new features for conductance, the old method of finding the slopes for a period of 6 months dosent work. What needs to be done is the following
+1. Find the difference between a preceeding conductance reading and the following one.
+2. If the follwing one is a drop, then look at the quantum of drop.
+3. Do a threshold drop to say around a value more than the mean drop
+4. Find the date of the following reading which resulted in the large drop.
+5. First check that no values before that date is lower than this dropped value.
+6. The secon check which needs to be done is to check that no value after the taken date is also not above this dropped value
+7. Continue this process of checking for large drops and scanning the values above and below the date where the large drop has happened.
+8. Introduce some measure of aggregating the large dropped values
+
+# JMJPFU
+# 17-Dec-2016
+
+Let us check a few of the conductance data to see how the conductance data points behave and then adopt a strategy of finding the conductance drops
+
+```{r}
+# Take a list of batteries
+
+feat5_list <- unique(bat_newfeat5$Battery)
+
+
+
+# Take one sample data
+
+
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% feat5_list[8]) %>% filter(measure=="Conductance")
+
+# Some visualisation
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+```
+
+Let us look at the file "dataTrain" and then take the list of those batteries which were tagged as "Failed" and look at their conductance profile.
+
+```{r}
+bat_list <- dataTrain %>% filter(label == "Failed") %>% select(Battery)
+```
+
+Take one of the battery from the above list and do the visualisation of the conductance
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% bat_list[8,1]) %>% filter(measure=="Conductance")
+
+
+# Some visualisation
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+# Tomorrow
+
+Will have to check out the following for conductance
+1. Take a reading and the adjacent reading
+2. check if the drop from the previous to subseqent is more than a threshold drop ( say 5%)
+3. Take the date of the subsequent reading
+4. Check that no reading prior to the taken date is below the value of the subsequent reading.
+5. Go on taking the process and keep on noting large threshold drop values checking that no preceeding values are lower than the value where large drop has happened.
+6. Make an aggregation feature to capture the drops which has happened cumulatively
+
+# JMJPFU
+# 20-Dec-2016
+
+Now we start the function to find the function to consolidate over for failure drops
+
+```{r}
+
+
+conlist <- condropFeat(batlist,bat_newfeat5,0.1,1)
+
+test1 <- conlist$result1
+
+
+```
+
+Let us do some sample visualisation of the list of batteries where the fail drop cases exist
+
+```{r}
+
+bat_list <- test1 %>% filter(FailDrop != 0) %>% select(Battery)
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% bat_list$Battery[1:4]) %>% filter(measure=="Conductance")
+
+
+# Some visualisation
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+With Lord's help the function has come out well. 
+# Tomorrow
+Need to play around with the threshold values and also the comparison value of the subsequent conductance. Right now all the subsequent values in conductance are only checked weather they are lower than the preValue which is the value from where the drop happened. We have to check whether the subsequent values are not greater than PreValue + some threshold value between the PreValue and the Subsequent value. 
+
+# JMJPFU
+# 21-12-2016
+
+Today made some change to the condropFeat function by introducing a new threshold value thresh2 indicating the point to which the post values can rise.
+
+With my Lords help the below filter worked well for identifying the drop profiles of the batteries.
+
+A thresh2 value of 1, which indicates that the post drop values should not rise above the prevalue + threshold value has given a more cleaner set of values which indicate potentiall failure of batteries.
+
+
+```{r}
+conlist <- condropFeat(batlist,bat_newfeat5,0.1,1) # thresh2 values of 1 resulted in a clean set of potential failure cases
+
+test1 <- conlist$result1
+```
+
+The next step we can take is the following
+1. Identify the date in which the biggest fail drop happened for the given set of battery
+2. Mark that date as the failure date
+3. Try the model classification based on the failure date.
+
+We need to create a complete protocol for taking the batteries, cleaning it and then taking it to the point where we find the features with respect to slope of conducatance over certain batches of time, DOD over time, % of points below the 80% mark, % of points below the conductance mark , maximum conductance drop, Conductance bins, Conductance drop point etc and then create a data set for training.
+
+# Complete Process for Battery Data Processing
+
+# Step 1 : Data Sources: Extracting data from the csv files and making into a dataframe format.
+
+The data sources are the csv file given by Celltraq. The major sources are the ones related to 
+1. Conductance : 2 files
+2. Voltage and Current : Multiple files
+3. Voltage and Temperature : Multiple files
+
+```{r}
+
+# Reading the Conductance data. The path is as per the path in the desktop. There are only two Discharge excel sheets
+
+All_discharge <- read.csv("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Battery Conductance I.csv",sep="|",header=FALSE) # Need to change the name of the file from discharge to Conductance
+
+All_discharge_II <- read.csv("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Battery Conductance II.csv",sep="|",header=FALSE)
+
+################################################################################################################
+
+# Readinng the Battery discharge data. The number of files are large. So have to set a path and read in the data
+
+filename <- list.files(path = "C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader")
+
+Battery_discharge2 <- data.frame(matrix(nrow=0,ncol= 12)) # Creating an empty data frame
+colnames(Battery_discharge2) <- colnames(Vod_bat_discharge)[1:12] # Naming the data frame
+
+for(i in 1:length(filename)){
+  
+  temppath <- paste0("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader/",filename[i])
+  
+  temp_discharge <-  read.csv(temppath,sep="|",header=FALSE) # Reading in the file
+  temp_discharge[1,1] <- paste(temp_discharge[2,1]) # The first record for battery id is always in a bad format. So repasting from the second record
+  colnames(temp_discharge) <- colnames(Vod_bat_discharge)[1:12] # naming the data frame
+  Battery_discharge2 <- rbind(Battery_discharge2,temp_discharge) # Condolidating data from each file
+  
+} # End of for loop for consolidating all the data
+
+###################################################################################################################
+# Reading in the Voltage and Temperature data. Similar to the above data
+Battery_voltemp1 <- data.frame(matrix(nrow=0,ncol= 20))
+colnames(Battery_voltemp1) <- colnames(Vod_bat_vt)[1:20]
+
+filename <- list.files(path = "C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader")
+
+
+for(i in 1:length(filename)){
+  
+  temppath <- paste0("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader/",filename[i])
+  
+  temp_voltemp <-  read.csv(temppath,sep="|",header=FALSE)
+  temp_voltemp[1,1] <- paste(temp_voltemp[2,1])
+  colnames(temp_voltemp) <- colnames(Vod_bat_vt)[1:20]
+  Battery_voltemp1 <- rbind(Battery_voltemp1,temp_voltemp)
+}
+
+
+```
+
+# Step 2 : Condolidating all variables of all batteries into a single data frame
+
+Native file : Cleaning_experimenting.Rmd
+
+The next step is to consolidate all the data into a single data frame so that we have all the required data in one place.
+
+The variables that are present are the following
+1. Conductance
+2.Voltage - Discharge
+3. Current
+4. Discharge - Whether the voltage slope is for discharge or charge
+5.Charge - Whether the voltage slope is for discharge or charge
+6. DOD
+7. Temperature
+8. Voltage - Normal voltage
+
+Function used
+
+1 bat_select : This function is for consolidating all the native values from excel sheet present
+2. bat_features : This function is adding the additional variables like discharge, charge,DOD etc as part of the dataframe
+
+```{r}
+
+# The complete data frame for calculating the new data frame
+
+bat_newfeat5 <- data.frame(matrix(nrow=0,ncol=9)) # 25 Oct bat_newfeat5
+
+colnames(bat_newfeat5) <- c( "Measurement_Timestamp","Variable","measure","Date","Date1","Battery","Plant","Site","String")
+
+for(i in 1001:2000){ # Looping over the data frame of the batteries where the required trend is required
+  
+  battery <- paste(batdf1[i,1]) # First get the battery
+  
+  bat_conall <- bat_select(battery) # Get the consolidated data for all batteries from the function bat_select
+  
+  bat_conall <- bat_conall[complete.cases(bat_conall),]
+  
+  # Finding all the dates where the voltage discharge profile is calculated
+  
+  bat_test <- unique(bat_conall %>% filter(measure=="Voltage") %>% select(Date))
+
+  bt <- nrow(unique(bat_conall %>% filter(measure=="Voltage") %>% select(Date)))
+  
+  # Getting the data for the slopes and depth of discharge from the above data
+  
+  volt_mean <- bat_conall %>% filter(measure=="Voltage") %>% select(Variable)
+  
+  fv <- floor(mean(volt_mean$Variable,na.rm = TRUE))
+  
+  ifelse(fv < 5,float_volt <- 2.23,float_volt <- 13.4)  # Setting the float voltage
+  
+  bat_sub <- bat_features(bt,bat_test,bat_conall,float_volt) # Function to get other features
+  
+  bat_conall <- rbind(bat_conall,bat_sub) # Consolidating all the data
+  
+  bat_conall$Battery <- battery # Adding the battery name also
+  
+  bat_others <- unique(filt1 %>% filter(Unique_ID == battery) %>% select(Site_Name,Plant_Name,String_Name))
+  
+  bat_conall$Plant <- bat_others$Plant_Name
+  bat_conall$Site <- bat_others$Site_Name
+  bat_conall$String <- bat_others$String_Name
+  
+  # Combining all the data together
+  
+  bat_newfeat5 <- rbind(bat_newfeat5,bat_conall)
+  
+  print(i)
+  
+}
+
+```
+
+# Step 3 : Creating data frame for training
+In this data set, we take the above created dataframe where all the 6 variables were created and then create a new data frame where some extracted features are introduced as a single row. The below are the features which are created
+
+1. Discharge slopes for 15 consequtive terms
+2. 15 sets of slope ( linear model parameters) of conductance and intercept of conductance
+3. 15 sets of DOD
+4. Drop in conductance.
+
+Along with the above variables the battery details like no, plant , manufacturer etc are also created
+
+A senond function is also run in addition to the above. This function calculates another set of features for conductance and DOD. They are the following
+
+1. Conductance in Top of list, less than 80 and less than 50
+2. DOD for the same measures
+
+
+```{r}
+
+# The below function creates the required details
+
+batList <- unique(bat_newfeat5 %>% select(Battery,Plant,Site,String))
+
+# batList to be given as a dataframe
+
+batteryFeatures <- batFeat(batList,bat_newfeat5) # Creates the required Feature map
+
+# Run another function to create another set of features
+
+batteryFeatures <- batFeatAddn(batteryFeatures,bat_newfeat5)
+
+# Running the list of features related to the Conductance drops created on 19 Dec
+
+conlist <- condropFeat(batlist,bat_newfeat5,0.1,0.3) # thresh2 values of 1 resulted in a clean set of potential failure cases
+
+test1 <- conlist$result1 
+test2 <- conlist$result2
+
+# test1 can be merged with the existing feature list
+
+batteryFeatures <- merge(batteryFeatures,test1,all.x = TRUE)
+
+# Selecting a limited list of features
+
+batFeatTrain <- batteryFeatures %>% select(Battery,PD1sl,PD2sl,PD3sl,PD4sl,PD5sl,PD6sl,PD7sl,PD8sl,PD9sl,PD10sl,Condrop,Dodtop,Dod80,Dod50,contop,con80,con50,FailDrop)
+
+```
+
+# Step 4 : Creating the labels and creating the initial data set for training
+
+
+```{r}
+# Create new feature for the labels
+
+batFeatTrain$label <- NA
+
+# Filtering based on our criteria and naming the labels
+
+class_Failed <- batFeatTrain %>% filter(FailDrop !=0,Condrop < 0.8,Dod80 > 10,con80 > 3)
+
+# First find the list of batteries that should be in normal
+
+bat_normal <- setdiff(batFeatTrain$Battery,class_Failed$Battery) # Finding difference between the two sets
+
+class_normal <- batFeatTrain %>% filter(Battery %in% bat_normal)
+
+# Let us label first
+
+class_Failed$label <- "Failed"
+class_normal$label <- "Normal"
+
+# Let us join them up
+
+batFeatTrain <- rbind(class_Failed,class_normal)
+
+```
+
+# Tomorrow
+1. Create different set of features, for checking on the time based concept of classification
+2. For those batteries which we think have failed, create time based features and include those classes( point of failure, 6 months before failure etc)
+3. Try modelling with the new set of features
+
+# JMJPFU
+# 22-Dec-2016
+
+Today, will try the modelling part with time based features. Also will have to check by reducing the threshold values and seeing whether the DOD values and Condrop values subscribe to the ranges which we were expecting.
+
+```{r}
+test2 <- test1 %>% filter(FailDrop != 0)
+
+# Trying to add the new threshold with the existing data frame
+
+batteryFeatures <- merge(batteryFeatures,test1,all.x = TRUE)
+
+# Taking a smaller subset
+
+# Line 333 to 362
+
+
+
+```
+
+With threshold values as below we got two batteries in the failed set and 998 as normal batteries.
+
+# conlist <- condropFeat(batlist,bat_newfeat5,0.1,0.3)
+
+#class_Failed <- batFeatTrain %>% filter(FailDrop !=0,Condrop < 0.8,Dod80 > 10,con80 > 3)
+
+Let us also clean up the NA values by imputing preceeding values in the NA columns. These are things which we should try doing
+
+1. Find the date for the failed cases where failure actually happened. This could be identified from the big data frame from the function ( test2)
+2. Classify the values before the failed date as per the time period ( 2 weeks before failure, 1 month before failuere etc)
+3. For the normal cases also include similar time periods
+4. Even for all the batteries, we need to include new features for the existing set. Say for example for slope of conductance, we need to take features of only the last 3 periods. Which will be how it will be on an ongoing time period. For all the variables, make the features as the last 3 or 4 periods.
+
+
+Before we start the training steps, let us do some visualisation of the failed cases
+
+
+```{r}
+
+batFailed <- batFeatTrain %>% filter(label == "Failed") %>% select(Battery) # Selecting the two batteries
+
+# Taking all relevant data from these batteries
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% batFailed$Battery[7:9]) %>% filter(measure %in% c("Conductance","DOD","Voltage")) # Taking the requuired data # ,"DOD","Voltage"
+
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+Let us first take the subset of data pertaining to the two batteries and find the dates at which the faildrop happened
+
+```{r}
+test2 <- conlist$result2
+
+test2 <- test2 %>% filter(Battery %in% batFailed$Battery[2]) # Finding the data pertaining to first battery
+
+range(test2$Date1) # Find range of dates when the batteries were in operational.
+# [1] "2012-09-15 21:27:46" "2016-01-27 18:51:55" : Failed Drop date : 2014-01-02 17:24:54
+# [1] "2012-09-12 12:51:50" "2016-01-28 10:15:00" : Failed Drop date : 2012-10-15 15:46:20
+
+test2 %>% filter(Battery %in% batFailed$Battery) %>% filter(Dropclass_0.1 == "FailDrop") %>% select(Date1)
+
+```
+The failed drop of one of the batteries is in the middle of tenure i.e after 2 years of service and the other is after 1 month after inception. Let us look at the other Failed Drop cases when the Fail Drop really happened
+
+```{r}
+test2 <- conlist$result2
+
+batFailed <- unique(test2 %>% filter(Dropclass_0.1 == "FailDrop") %>% select(Battery))
+
+dateRange <- test2 %>% filter(Battery %in% batFailed$Battery[2]) %>% select(Date1)
+range(dateRange$Date1)
+test2 %>% filter(Battery %in% batFailed$Battery[2]) %>% filter(Dropclass_0.1 == "FailDrop") %>%select(Date1)
+
+
+# [1] "2012-09-15 21:27:46" "2016-01-27 18:51:55" : 2014-01-02 17:24:54
+# [2] "2012-06-05 16:14:08" "2015-03-22 17:09:07" : 2015-02-06 10:48:07
+# [3] "2012-06-05 16:13:52" "2015-03-22 17:08:51" : 2015-02-06 10:47:51
+# [4] "2012-09-14 09:04:15" "2016-01-27 18:52:02" : 2013-02-26 14:09:26
+# [5] "2012-06-05 16:13:52" "2015-03-22 17:08:51" : 2015-02-06 10:47:51
+# [6] "2012-09-14 14:39:19" "2015-05-12 08:49:29" : 2014-04-23 08:07:15	2015-04-21 10:56:44
+# [7] "2012-06-05 16:14:08" "2015-03-22 17:09:07" : 2015-02-06 10:48:07
+# [8] "2012-09-12 12:51:50" "2016-01-28 10:15:00" : 2012-10-15 15:46:20
+# [9] "2013-03-22 12:49:22" "2015-04-09 08:00:29" : 2013-04-06 16:10:58
+
+```
+So looking at the date ranges and also the point where the Failure drop has happened, the failure drop happens somewhere within the mid range of the tenure
+
+Also looking at battery 6, there appears to be two points of fail drop. Another intuition is that it could be prudent to check the DOD % drop from 0.8 to 0.85.
+
+The above change has to be made in the batAddn function, by changing the value for 0.8 to 0.85.
+
+# Tomorrow
+We will do the following from tomorrow
+1 : Fix the last date as the failure date and work back wards for other dates
+2 : Fix the classes for other dates accordingly
+3. Get to the training part
+
+# JMJPFU
+# 2-1-2017 : Classification and training of the model
+
+Another element to be observed is the number of observations or dates when the observations were taken. Check the number of observation dates for the potentially failed cases and also the non failure cases. The intuition is that if the battery has failed, the number of dates when the observations were taken would be lower than the ok batteries.
+
+The other angle is the date when the failure drop happened. If the date in which the failure drop happened is pretty close to the date in which the last reading was taken, then the probability is that the battery is a failed battery. From this perspective the failed batteries are the following
+
+Potentially failed batteries : 2,3,5,6,7.
+
+Let us take only these cases and visualise them and also take them as failure cases for further classification.
+
+```{r}
+
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% batFailed$Battery[7]) %>% filter(measure %in% c("Conductance","DOD","Voltage")) # Taking the requuired data # ,"DOD","Voltage"
+
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+Let us take these cases alone and try classification for them. The strategy should be as follows
+
+1. Take the last date for these batteries and make them as the failure date.
+2. Take each available date and then classify them accordingly with respect to the failure date.
+3. Take the relevant features with respect to the class. ( For example if the class is 2 months before failure, take only 3 feature each for periods before the class and make it as a seperate data set).The data set required should be the extracted features.
+4. We can also think about including native features for the particular date in addition to the extracted features.
+
+#####################################################################################################################
+
+# JMJPFU
+## 4-Jan-2016;
+
+The process for extracting features and training the model is as follows. There are three distinct steps to the process
+
+# Step 1 : Reading data and creating a consolidated dataset
+
+Lines : 161 - 288
+
+This step creates a consolidated data set which is ideal for visualisation also.
+
+# Step 2 : Creating the feature data frame for identifying potential failed cases.
+
+lines : 290 - 333
+
+This step consists of multiple substeps. They are the following
+1. First features are extracted from the list of batteries and the consolidated data frame created ealier. This is done using a function called batFeat
+2. Additional set of features are included in the above created feature map which includes, con50 and dod50 etc. This is done using another function called batFeatAddn
+3.A new feature related to the fail drop is executed next. This is done using the function conDropFeat. After running this function we get two outputs. The first output is the list of batteries with the consolidated drop score. The second is a detailed map of each of the above batteries detailing its condrop profile.
+4. Once the condrop feature is calculated, the first output which is the list of 1000 batteries with the consolidated condrop is merged with the battery Features dataframe to get a new batFeatures data frame with an additional column. The number of columns at this stage is 72.
+5. A limited set of features is then selected for further filtering and identifying the failure cases. A new data frame called batFeatTrain is created after this step.
+
+# Step3 : Filtering the failed cases and normal batteries
+
+lines : 334 - 364.
+
+This step filters the above created features data frame according to certain criteria and then classify them as failed or normal batteries
+
+# step4 : Creating seperate data frames for failed and normal cases for training.
+
+## Step 4a : Creating the failed cases
+
+For creating the failed cases the following method is adopted
+
+1. First seperated the failed batteries from the normal batteries
+2. Created a condolidation data frame
+3. Created a loop to run over all the batteries in the failed list to label the batteries. The major methods adopted for labelling are the follwing
+  a. Only the first 8 periods are labelled according to the classes.
+  b. All those records other than the first 8 periods are classified as Normal_Period.
+  
+  
+```{r}
+# Finding the list of batteries which are failed
+
+failedBats <- batFeatTrain %>% filter(label == "Failed") %>% select(Battery)
+normalBats <- batFeatTrain %>% filter(label == "Normal") %>% select(Battery)
+
+# Creating a consolidated data frame for training for all Failed cases
+
+failCon <- data.frame(matrix(nrow=0,ncol=16))
+
+names(failCon) <- names(featTest2)
+
+for(i in 1:nrow(failedBats)){
+  
+bat2Exp <- failedBats$Battery[i]
+
+featTest2  <- batFeat1(bat2Exp,bat_newfeat5)
+
+cou = 0
+
+featTest2$label <- NA # Setting up a label
+
+if(nrow(featTest2) < 8){endPoint <- nrow(featTest2)}else{endPoint <- 8} # Label the sets only upto 8 periods
+
+# Start a for loop for labelling
+
+for(j in 1:endPoint){
+  
+  cou = cou + 1 # Starting a counter
+  if(cou==1){featTest2$label[j] <- "Failure_Point"}else{
+    
+    label <- paste0((cou-1),"_Period_before_Failure")
+    featTest2$label[j] <- label
+  }
+  
+} # End of innner for loop
+
+featTest2[is.na(featTest2$label),16] <- "Normal_Period"
+
+featTest2[is.na(featTest2$conSlope),2] <- mean(featTest2$conSlope,na.rm = TRUE) # Imputing mean values NA conslope values
+
+failCon <- rbind(failCon,featTest2) # Creating a consolidated dataframe
+  
+  
+} # End of outer for loop
+
+
+
+```
+
+
+## Step 4b : Creating the Normal cases
+
+For Normal cases, the strategy can be the following
+
+1. Look at the distribution of dates and total number of dates
+2. Make the bottom half labelled as Normal_period.
+3. Let the top half be labelled as To_test
+
+```{r}
+
+
+normalCon <- data.frame(matrix(nrow=0,ncol=16))
+
+names(normalCon) <- names(featTest2)
+
+for(i in 1: nrow(normalBats)){ #
+  
+bat2Exp <- normalBats$Battery[i]
+
+featTest2  <- batFeat1(bat2Exp,bat_newfeat5)
+
+cou = 0
+
+featTest2$label <- NA # Setting up a label
+
+labRec <- round(nrow(featTest2) * 2/3)
+
+testRec <- nrow(featTest2) - labRec
+
+for(j in 1:testRec){
+  
+  featTest2$label[j] <- "To_test"
+} # End of to be tested period for loop records
+
+for(k in (testRec+1):nrow(featTest2)){
+  
+  featTest2$label[k] <- "Normal_Period"
+  
+} # End of Normal period records for loop
+
+
+featTest2[is.na(featTest2$conSlope),2] <- mean(featTest2$conSlope,na.rm = TRUE) # Imputing mean values NA conslope values
+
+normalCon <- rbind(normalCon,featTest2) # Creating a consolidated dataframe
+
+
+
+} # End of outer for loop
+
+
+
+```
+
+# Thank Lord, for the progress made.
+
+# Tomorrow
+
+1. Tomorrow we will start the modelling part with the current data set.
+2. Will have to merge both the failed and normal data sets and carry out some modelling.
+3. Will have to resort to minority sampling with caret
+4. Will try all type of methods with the dataset.
+
+# JMJPFU
+# 5-Jan-2017
+
+We will start the modelling part today. In this file, we will list the process and the real modelling work will be done in a seperate file.
+
+
+```{r}
+
+
+
+```
+
