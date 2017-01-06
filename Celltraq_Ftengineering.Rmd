@@ -1,0 +1,278 @@
+---
+title: "JMJPFU-Celltraq_Ftengineering"
+author: "Quadrant-4"
+date: "October 17, 2016"
+output: html_document
+---
+In this RMD we will exract features for the batteries for the initial modelling
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+# Make empty dataframe for loading the feature info
+
+Bat_Feat1_new <- data.frame(matrix(nrow=0,ncol=65))
+colnames(Bat_Feat1_new) <- names(bat_con1)
+colnames(Bat_Feat1_new)[65] <- "Condrop"
+
+# Make a list of batteries to loop over
+
+bat_list <- unique(bat_newfeat3 %>% select(Battery,Plant,Site,String)) # A list of 128 batteries
+
+
+```
+
+The approach is to take one battery at a time and then take each of the measures ( Voltage, Conductance etc) and then calculate the mean slopes and make the features from the first date of reading. In the future we should ideally take it from the installation date of the battery.
+
+
+```{r}
+# Take one battery at a time
+
+
+
+for(i in 1:nrow(bat_list)){
+  print(i)
+  temp_bat <- paste(bat_list$Battery[i]) # Take one battery at a time
+  temp_list <- bat_list[i,] # Take all the relevant records of the battery from the battery list
+ # bat_rec <- bat_newfeat4 %>% filter(Battery == temp_bat) # Take all information from the selected battery
+  bat_rec <- bat_newfeat4 %>% filter(Battery == temp_bat)
+  temp_dates <- unique(bat_rec %>% select(Date1)) # Take all the unique dates
+  start_date <- range(temp_dates$Date1)[1] # Calculating the start date so as to extract features every 6 months
+  
+  # First calculate the features related to Discharge slopes
+  
+  dis_rec <- bat_rec %>% filter(measure == "Discharge") # taking only the discharge data
+  
+  dis_df <- dis_slope(start_date,dis_rec) # Calling the function to calculate the discharge slopes
+  
+  names(dis_df) <- c("PD1dis","PD2dis","PD3dis","PD4dis","PD5dis","PD6dis","PD7dis","PD8dis","PD9dis","PD10dis","PD11dis","PD12dis","PD13dis","PD14dis","PD15dis")
+  
+   # Imputing 'NA' to all NaN values
+  
+  for(i in 1:15){
+    
+    if(dis_df[1,i]=="NaN"){dis_df[1,i] <- NA}
+    
+    }
+  
+  # Calculating the Conductance slopes
+  
+  con_df <- con_slope(start_date,bat_rec) # Getting a df with 30 variables for slopes
+  names(con_df) <- c("PD1in","PD1sl","PD2in","PD2sl","PD3in","PD3sl","PD4in","PD4sl","PD5in","PD5sl","PD6in","PD6sl","PD7in","PD7sl","PD8in","PD8sl","PD9in","PD9sl","PD10in","PD10sl","PD11in","PD11sl","PD12in","PD12sl","PD13in","PD13sl","PD14in","PD14sl","PD15in","PD15sl")
+  
+  ######################## It is better to continue with the NA values for now #######################
+  # Imputing '0' to all NA values
+   # 
+   # for(i in 1:30){
+   #  
+   #  if(is.na(con_df[1,i])){con_df[1,i] <- 0}
+   #  
+   # }
+   # 
+  # Now to take the Depth of discharge data
+  ##################################################################################################
+  dod_rec <- bat_rec %>% filter(measure == "DOD") # taking only the discharge data
+  
+  dod_df <- dod_max(start_date,dod_rec) # Running the function to find the lowest point of DOD within the period of year
+  
+  # Imputing NA when the DOD is "Inf" value
+  
+   for(i in 1:15){
+    
+    if(dod_df[1,i]==Inf){dod_df[1,i] <- NA}
+    
+   }
+  
+  names(dod_df) <- c("PD1dod","PD2dod","PD3dod","PD4dod","PD5dod","PD6dod","PD7dod","PD8dod","PD9dod","PD10dod","PD11dod","PD12dod","PD13dod","PD14dod","PD15dod")
+  
+  # Condolidating all teh values
+  
+  
+  bat_con1 <- cbind(dis_df,con_df,dod_df) # Condolidating the conductance and discharge data
+  
+  bat_con1$Battery <- temp_bat # Adding the battery name
+  bat_con1$Plant <- temp_list$Plant
+  bat_con1$Site <- temp_list$Site
+  bat_con1$String <- temp_list$String
+  # Getting new features for % drop in conductance from highest to lowest points.
+  
+  con_rec <- bat_rec %>% filter(measure == "Conductance") %>% select(Variable) # taking only the discharge data
+  bat_con1$Condrop <- min(con_rec$Variable,na.rm = TRUE)/max(con_rec$Variable,na.rm = TRUE)
+  
+  # Combining with the original Battery Feature DF
+  
+  Bat_Feat_new <- rbind(Bat_Feat_new,bat_con1)
+  
+  
+   
+} # End of the for loop
+
+
+
+```
+
+
+#JMJPFU
+# 18-Oct-2016
+Now to take the list of batteries for bat_newfeat4 and then create the new features
+
+```{r}
+
+bat_list <- unique(bat_newfeat5 %>% select(Battery,Plant,Site,String))
+
+# Now to create the new list of features
+
+Bat_Feat <- data.frame(matrix(nrow=0,ncol=64))
+colnames(Bat_Feat) <- names(bat_con1)
+
+
+```
+
+# JMJPFU
+# 19-Oct-2016
+
+Another variable that has to be included in the data set is that related to SD of the conductance.
+
+```{r}
+Bat_Feat$SD <- NA
+
+for(i in 1:nrow(Bat_Feat)){
+  print(i)
+  battery <- Bat_Feat$Battery[i] # Take one battery at a time
+  Bat_Feat$SD[i] <- bat_newfeat4 %>% filter(Battery == battery & measure == "Conductance") %>% summarise(SD = sd(Variable))
+  
+}
+
+```
+
+# JMJPFU
+# 26-Oct-2016
+
+Today we create the feature dataframe for the new bat_newfeat5. 
+
+We will be using the Bat_Feat1 for storing the new features
+```{r}
+
+bat_list <- unique(bat_newfeat5 %>% select(Battery,Plant,Site,String))
+
+
+```
+
+Will create a new feature df Bat_Feat1_new for storing values with NA values also
+
+Will have to change the Bat_feat procedure to include the largest and smallest values of Conductance and a measure of % drop also.
+
+# Different perspectives for analysis
+
+We will have different perspectives for analysis as we did in the previous analysis.
+
+1 . Binning with respect to slopes of 
+
+# JMJPFU
+# 30-Oct-2016
+
+As a new perspective, we will calculate the amount of points which are between three bands of DOD.
+
+% of points less than 50% DOD
+% of points between DOD 50% and 80%
+% of points with DOD above 80%
+
+```{r}
+
+Bat_Feat_new$Dod50 <- Bat_Feat_new$Dod80 <- Bat_Feat_new$Dodtop <- NA
+
+ Bat_Feat1_new$con50 <- Bat_Feat1_new$con80<- Bat_Feat1_new$contop <- NA
+
+for(i in 1:nrow(Bat_Feat1_new)){
+  
+  print(i)
+  temp_bat <- paste(Bat_Feat1_new$Battery[i]) # Take one battery at a time
+  
+  #Features for DOD %
+  bat_rec <- bat_newfeat4 %>% filter(Battery == temp_bat & measure == "DOD") %>% select(Variable)
+  # 
+  totdis <- nrow(bat_rec) # No of records with discharge profiles
+  # 
+  dod50 <- nrow(bat_rec %>% filter(Variable < 0.5))
+  dod80 <- nrow(bat_rec %>% filter(Variable < 0.8 & Variable >= 0.5))
+  dodtop <- totdis - (dod50 + dod80)
+  # 
+  Bat_Feat_new$Dod50[i] <- (dod50/totdis)*100
+  Bat_Feat_new$Dod80[i] <- (dod80/totdis)*100
+  Bat_Feat_new$Dodtop[i] <- (dodtop/totdis)*100
+  
+  # Similar conductance drop bands
+  
+  bat_rec <- bat_newfeat5 %>% filter(Battery == temp_bat & measure == "Conductance") %>% select(Variable)
+  
+  totdis <- nrow(bat_rec) # No of records with Conductance profiles
+  
+  conmax <- max(bat_rec$Variable,na.rm = TRUE)
+  
+  con50 <- nrow(bat_rec %>% filter(Variable < (0.5 * conmax)))
+  con80 <- nrow(bat_rec %>% filter(Variable >= (0.5 * conmax) & Variable < (0.8 * conmax)))
+  contop <- nrow(bat_rec %>% filter(Variable >= (0.8 * conmax)))
+
+  
+  Bat_Feat1_new$con50[i] <- (con50/totdis)*100
+  Bat_Feat1_new$con80[i] <- (con80/totdis)*100
+  Bat_Feat1_new$contop[i] <- (contop/totdis)*100
+  
+  
+  
+}
+
+
+
+```
+
+Now we will create the new set of features for the first list of 999 batteries also and observe the readings and do some similar analysis and observations
+
+# JMJPFU
+# 3-Nov-2016
+
+```{r}
+
+# Creating the empty  data frame
+
+Bat_Feat_new <- data.frame(matrix(nrow=0,ncol=65))
+colnames(Bat_Feat_new) <- names(bat_con1)
+colnames(Bat_Feat_new)[65] <- "Condrop"
+
+# Creating the list of batteries
+
+bat_list <- unique(bat_newfeat4 %>% select(Battery,Plant,Site,String))
+
+# Creating the new feature list # Go to line 34
+
+# Creating new features # line 183
+
+```
+
+# JMJPFU
+# 19-Dec-2016
+
+Now let us create a function to calculate the cumulative drop in conductance. The methodology is as described below
+
+1. Take a reading and the adjacent reading
+2. check if the drop from the previous to subseqent is more than a threshold drop ( say 5%)
+3. Take the date of the subsequent reading
+4. Check that no reading prior to the taken date is below the value of the subsequent reading.
+5. Go on taking the process and keep on noting large threshold drop values checking that no preceeding values are lower than the value where large drop has happened.
+6. Make an aggregation feature to capture the drops which has happened cumulatively
+
+When making a function to achieve the above, we need to make function in such a way that the desired drop threshold is given as a parameter
+
+
+
+
+```{r}
+# First take the list of batteries
+batlist <- Bat_Feat1_new$Battery
+
+# Run the function to add another feature
+
+
+```
+
