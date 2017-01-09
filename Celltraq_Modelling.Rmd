@@ -1,0 +1,390 @@
+---
+title: "JMJPFU-Celltraq Models"
+output: html_notebook
+---
+
+# JMJPFU
+# 5-Jan-2016
+
+This notebook will detail the modelling steps and process. The broad process is as listed below.
+
+1. Model Exercise 1 : This will be the benchmark model and will not have any preprocessing or transformation. However other activities like spot checking and model tuning will be done.
+2. Model improvement 1 : In this model, we will try to do different types of preprocessing and transformation and then check the improvements which will be made in the model if any. Will also try out the minority sampling with SMOTE
+
+
+
+# Initial tasks
+
+Loading libraries
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(caret)
+```
+
+Creating the consolidated data set and then ordering the variables
+
+```{r}
+
+# Taking the normal data set
+
+normalTrain <- normalCon %>% filter(label != "To_test")
+
+modelData <- rbind(normalTrain,failCon)
+
+modelData <- modelData %>% select(Battery,Counter,Bench1,Bench2,featDischarge,conSlope,dodMin,Dod50,Dod85,Dodtop,conDrop,con50,con80,contop,voltSD,label)
+
+```
+
+# Step 1 : Creating a Validation Dataset
+
+First let us create a validation dataset and a training data set.
+
+```{r}
+set.seed(7)
+
+# Selecting 20% of data for validation
+
+validationIndex <- createDataPartition(modelData$label,p=0.80,list=FALSE)
+
+# Creating the validation set
+
+validationSet <- modelData[-validationIndex,]
+
+# Creating the remaining 80% of data
+
+batDataset <- modelData[validationIndex,]
+
+
+```
+
+# Step 2 : Descriptive Statistics
+
+Let us carry out some descriptive statistics of the dataset
+
+# Dimensions of the dataset
+
+```{r}
+dim(batDataset)
+```
+
+# Datatypes
+
+```{r}
+sapply(batDataset,class)
+```
+
+So we can see that label is a character. We need to convert it into a factor. Let us first look at the various lables in the batDataset
+
+```{r}
+unique(batDataset$label)
+unique(modelData$label)
+unique(validationSet$label)
+```
+
+# Changing class of the labels
+We can also see that the validationSet has not received representation of all classes. This is probably because the label was not made as a factor. Let us first make the label as a factor and then re-compute the validation sets.
+
+
+```{r}
+
+modelData$label <- as.factor(modelData$label)
+
+validationIndex <- createDataPartition(modelData$label,p=0.8,list=FALSE)
+
+validationSet <- modelData[-validationIndex,]
+
+batDataset <- modelData[validationIndex,]
+
+unique(batDataset$label)
+
+unique(validationSet$label)
+
+```
+Still the validationSet does not have all the classes. So in the next pass we will try minority sampling techniques and redo the validation steps.
+
+Let us now look at the summary statistics of the data. Also look at the distribution of some of the values for Dod50 and con50
+
+# Summary Statistics
+
+```{r}
+summary(batDataset)
+
+table(batDataset$Dod50)
+
+table(batDataset$con50)
+```
+
+# Distribution of classes
+
+Let us also look at the distribution of classes. This is to check how the imbalance of the classes are
+
+```{r}
+cbind(Freq = table(batDataset$label),prop = prop.table(table(batDataset$label))*100)
+```
+
+so as seen from the imbalance data the periods before failure are in the minority. This will definitely lead to misclassification and sensitivity will tend to be low. However we will will continue with this distribution for the time being and think of minority sampling in the next pass.
+
+# Looking up at NA values
+
+Let us now check the completeness of the dataset
+
+```{r}
+
+nrow(batDataset)
+
+nrow(batDataset[complete.cases(batDataset),])
+```
+
+The above code was to compare between the number of rows of the real data set and also the number of rows after executing the complete.cases on the dataset.
+
+So as seen there are no missing values in the dataset, which is good
+
+# Looking at correlation between data.
+
+Let us see if there are any major correlations between the data points
+
+```{r}
+cor(batDataset[,5:15])
+```
+
+So as seen, the major correlation is between the Dod85/Con85 and DodTop/ConTop. What is seen is some negative correlation which means that higher the Dod85 lower would be the DodTop. This makes sense. How this correlation will affect the model quality is yet to be seen. 
+
+# Step 3 : Unimodal Data Visualizations.
+
+Let us now look at some visualisation of the variables to understand the skewness and normality of the datasets.
+
+# histograms for each variable
+
+```{r}
+par(mfrow= c(3,4))
+
+for(i in 5:15){
+  
+  hist(batDataset[,i],main=names(batDataset)[i])
+}
+```
+
+As can be seen from the data most of the variables are skewed and some are also bimodal in shape. We might have to resort to some transformations like log transform, or other power transformation later on.
+
+# Density plots of each variable
+
+Let us also look at the density plots to get a more smoother look at the distributions.
+
+```{r}
+
+par(mfrow = c(3,4))
+
+for(i in 5:15){
+  
+  plot(density(batDataset[,i]),main = names(batDataset)[i])
+}
+
+```
+
+The density plots gives a more smoother plot. Another transformation which we can carry out is on the scaling of the variables. The values of variables have multiple scales. This can be re-scaled later on to get better results.
+
+# Box and Whisker plots
+
+Let us look at another perspective for the distribution of data. Let us look at the Box and Whisker plot for the dataset.
+
+```{r}
+
+par(mfrow = c(3,4))
+
+for(i in 5:15){
+  
+  boxplot(batDataset[,i],main = names(batDataset)[i])
+  
+  
+}
+```
+As seen from the box and whisker plots, many squished plots indicate the presence of extreme skewness in the data. Also long tails in plots indicate presence of outliers ??
+
+Another intuition which can be taken away is the possibility of including a new variable related to Conductance Standard deviation like the voltage standard deviation.
+
+# Multimodal Data Visualisations
+
+Let us look at the interaction between the attributes. We will use a scatter plot matrix of the attributes coloured by the class values. 
+
+```{r}
+
+jittered_x <- sapply(batDataset[,5:15],jitter)
+
+pairs(jittered_x,names(batDataset[,5:15]),col = batDataset$label)
+
+```
+# JMJPFU
+# 6-Jan-2017
+
+# Barplots
+
+From the above jittered plot we can see that the wanted classes are in minority and at specific points accross some variables.
+
+
+```{r}
+par(mfrow = c(3,4))
+
+for(i in 5:15){
+  
+  barplot(table(batDataset$label,batDataset[,i]),main = names(batDataset)[i])
+  
+  legend.text=unique(batDataset$label)
+}
+```
+The above barplot is not that useful as expected to be. 
+
+# Step 4 : Evaluation of Algorithms
+
+In this step we will spot check some classes of algorithms to determine which algorithm will suite best this situation. The types of algorithms which we will test are the following
+
+1. Linear Algorithms : Logistic Regression, Linear Discriminate Analysis(LDA) and Regularized Logistic Regression ( GLMNET)
+
+2. Nonlinear Algorithms : K-Nearest Neighbours(KNN), CART, Naive Bayes & SVM
+
+3. Ensemble Methods : Bagging : Bagged CART ( BAG), Randome Forest ( RF)
+
+4. Ensemble Methods - Boosting : Stochastic Gradient Boosting(GBM) and C5.0 
+
+
+## Training Setup
+
+Let us go for a 10-fold cross validation with 3 repeats . For simplicity we will use Accuracy and Kappa metrics. We can also at a later stage go with Area Under ROC curve ( AUC ) and also look at sensitivity and specificity
+
+### 4.a : Defining the Train controls
+
+```{r}
+trainCont <- trainControl(method = "repeatedcv", number = 10,repeats = 3)
+
+metric <- "Accuracy"
+```
+
+### 4.b : Checking out the various algorithms
+
+We will set seed so that all the algorithms train on the same split of data so that comparison is effective.
+
+```{r}
+
+# Logistic Regression - With glm - Fitted with error
+
+set.seed(7)
+
+#fit.glm <- train(label~.,data=batDataset[,5:16],method = "glm",metric = metric, trControl = trainCont)
+
+# Linear Discriminate Analysis ( LDA ) - Fitted
+
+#fit.lda <- train(label~.,data=batDataset[,5:16],method = "lda",metric = metric, trControl = trainCont)
+
+# Regularized Logistic Regression ( GLMNET) : Didn't fit
+
+# fit.glmnet <- train(label~.,data=batDataset[,5:16],method="glmnet",metric=metric, trControl = trainCont)
+
+# KNN : Fitted
+
+#fit.knn <- train(label~.,data=batDataset[,5:16],metric=metric,method = "knn", trControl = trainCont)
+
+# CART : Fitted
+
+# fit.cart <- train(label~.,data=batDataset[,5:16],method="rpart",metric=metric,trControl=trainCont)
+
+# Naive Bayes : Fitted with lots of error
+
+#fit.nb <- train(label~.,data=batDataset[,5:16],method = "nb",metric=metric, trControl = trainCont)
+
+# Support Vector Machines : Fitted 
+
+#fit.svm <- train(label~.,data=batDataset[,5:16],method="svmRadial",metric=metric,trControl=trainCont)
+
+
+
+```
+
+### Notes and Errors
+
+1. A model was extracted with error. Errors point to the fact that glm works only for binary classification problems. Need to look for the prediction part
+2. lda did work and a model was fitted. However there were some errors which cropped up related to collinearity
+3. glmnet did not work. The error said that some of the classes had less than 8 observations. Need to try this method after the minority re-sampling methods are tried.
+4. KNN worked. There werent any significant errors for this method.
+5. Cart Worked. There werent many significant errors for this method.
+6. Naive Bayes. This method also worked. However there were lots of errors which cropped up. From the look of it most of the errors were related to less variance in values for particular classes. Might be able to get rid of this by simulating values in the minority class sampling methods.
+7. SVM - SVM fitted with not much error
+
+### 4.c - Comparison of algorithms 
+
+Once the initial set of algorithms are done, let us just compare these algorithms to find the better one among them.
+
+```{r}
+
+results <- resamples(list(LDA = fit.lda,KNN = fit.knn,CART = fit.cart,NB = fit.nb, SVM = fit.svm))
+
+summary(results)
+
+dotplot(results)
+```
+
+Looking at the results, the two best algorithms which fit well for the model are SVM and KNN. However a word of caution for the model is, the accuracy is high because of the fact that the majority class has brute majority over the minority class. So what we need to keenly check out is the sensitivity of the minority classes.
+
+Now that we have the baseline models, let us try tuning the two best models , KNN & SVM
+
+### 4.d . Tuning the parameters
+
+Tuning KNN model
+
+Let us use a ROC as the metric this time. ( see error note)
+
+Metric of Accuracy is used
+
+
+```{r}
+
+trainControl <- trainControl(method = "repeatedcv",number = 10, repeats = 3,classProbs = FALSE)
+
+metric <- "Accuracy" #
+
+set.seed(7)
+
+grid = expand.grid(.k=seq(1,20,by=1))
+
+fit.knnTune <- train(label~.,data=batDataset[,5:16],method="knn",metric=metric,trControl=trainControl,tuneGrid=grid)
+
+print(fit.knnTune)
+
+plot(fit.knnTune)
+
+
+```
+
+Tuning SVM model
+
+```{r}
+
+trainControl <- trainControl(method = "repeatedcv", number = 10 , repeats = 3,classProbs = FALSE)
+
+metric = "Accuracy"
+
+set.seed(7)
+
+grid <- expand.grid(.sigma=c(0.025,0.5,0.1,0.15),.C=seq(1,10,by=1))
+
+fit.svmTune <- train(label~.,data=batDataset[,5:16],method="svmRadial",metric=metric,trControl=trainControl,tuneGrid=grid)
+
+print(fit.svmTune)
+
+plot(fit.svmTune)
+
+
+
+```
+
+
+
+
+
+
+
+
+# Errors & Notes
+
+1. For the metric ROC, it is required to put classProbs = TRUE
+2. There was another error which cropped when the metric ROC was used. The name of the label with underscore in it created problems. The class names have to be re-worked . However for the time being, let us change the metric from ROC and try Accuracy. Also the classProbs have to be kept as fALSE

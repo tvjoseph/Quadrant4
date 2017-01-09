@@ -1,0 +1,847 @@
+---
+title: "Pre-Modelling"
+author: "Quadrant-4"
+date: "October 18, 2016"
+output: html_document
+---
+# JMJPFU
+
+# Clustering Analysis
+
+Let us first do some clustering exercise on the new features which has been extracted for the data. 
+
+
+# Step 1 : Preprocessing of data
+
+In order for clustering to be effective it will be good to normalise the data. However before normalising the data, we have to clean up unwanted data from the data set
+
+```{r}
+
+# Taking only the relevant columns from teh data frame
+
+Batmod_df1 <- Bat_Feat[,1:8]
+Batmod_df1 <- cbind(Batmod_df1,Bat_Feat[,16:35])
+Batmod_df1 <- cbind(Batmod_df1,Bat_Feat[,46:53])
+Batmod_df1 <- cbind(Bat_Feat[,61],Batmod_df1)
+colnames(Batmod_df1)[1] <- "Battery"
+
+# Looking at variability for some of the variables
+
+unique(Batmod_df1$PD7dod) # All the variables have variability
+```
+
+Next task is to normalise the data by first centering the data as per the mean and then scaling it so that all data points are in the same scale
+
+```{r}
+
+library(caret)
+
+# Preprocess params
+
+pre_params <- preProcess(Batmod_df1[,2:37],method=c("center","scale"))
+
+Bat_trans <- predict(pre_params,Batmod_df1[,2:37])
+
+Bat_trans <- cbind(Batmod_df1[,1],Bat_trans)
+
+colnames(Bat_trans)[1] <- "Battery"
+```
+
+So now the variables are pre-processed. Let us start the clustering exercise
+
+```{r}
+# Ice breaking clustering
+
+set.seed(3)
+
+bat_km1 <- kmeans(Bat_trans[,2:37],3,nstart=20) # Doing a clustering for 3 clusters
+
+bat_km1
+
+# Plotting the clusters
+
+plot(Bat_trans[,2:37],col=(bat_km1$cluster + 1),main = "K means clustering results with K=3",pch=10,cex=2)
+
+plot(Bat_trans[,2:10],col=(bat_km1$cluster + 1),main = "K means clustering results with K=3",pch=10,cex=2)
+
+# Within cluster sum of squares
+
+bat_km1$tot.withinss # Within cluster sum of squares
+
+bat_km1$withinss # Individual within Cluster sum of swares
+
+
+```
+
+The individual within cluster sum of squares of the third cluster seems to be large. Let us make more clusters
+
+```{r}
+set.seed(3)
+bat_km2 <- kmeans(Bat_trans[,2:37],5,nstart = 30)
+bat_km2
+
+# Within cluster sum of squares
+
+bat_km2$tot.withinss # Within cluster sum of squares
+
+bat_km2$withinss # Individual within Cluster sum of swares
+
+# Some of the parameters within the cluster algorithm
+
+bat_km2$size # The size of clusters
+bat_km2$
+
+```
+
+Let us make a data frame out of the clusters and then map the battery name with the cluster names and then do some mapping.
+
+```{r}
+bat_clusters <- data.frame(bat_km2$cluster)
+
+bat_clusters <- cbind(Bat_trans$Battery,bat_clusters)
+
+names(bat_clusters) <- c("Unique_Id","Clusters")
+
+
+```
+
+# Some notes about clustering
+
+1. A good cluster is one where within-cluster variation is as small as possible. Which is "bat_km2$tot.withinss"
+
+
+
+
+
+# Validation approach to clustering
+Let us try a validation approach for this problem and try to find the most optimal cluster size
+
+```{r}
+
+k = c(2:500) # Defining a list of k values to be iterated out
+
+init_metric <- 10000
+final_clust <- 0
+
+for(i in 1:length(k)){
+  
+  clus <- k[i] # Assigning a cluster
+  
+  set.seed(3) # Setting seed
+  bat_km <- kmeans(Bat_trans[,2:37],clus,nstart = 30) # Finding the clusters
+  metric <- bat_km$tot.withinss # Finding the within cluster sum of squares for this data set
+  
+  if(metric < init_metric){ 
+    
+    init_metric <- metric # Assigning the new metric to initial_metric
+    final_clust <- i
+    
+    }
+  
+  print(i)
+  
+}
+
+bat_km$size
+
+```
+
+It seems that this method, produces the most optimal number of clusters at 487, which is not very optimal. Now let us also try by not normalising the data
+
+```{r}
+bat_km3 <- kmeans(Batmod_df1[,2:37],5,nstart = 50)
+
+bat_km3$tot.withinss
+
+bat_km3$size
+
+```
+
+
+```{r}
+
+k = c(2:500) # Defining a list of k values to be iterated out
+
+init_metric <- 10000000000000
+final_clust <- 0
+
+for(i in 1:length(k)){
+  
+  clus <- k[i] # Assigning a cluster
+  
+  set.seed(3) # Setting seed
+  bat_km3 <- kmeans(Batmod_df1[,2:37],clus,nstart = 50) # Finding the clusters
+  metric <- bat_km3$tot.withinss # Finding the within cluster sum of squares for this data set
+  
+  if(metric < init_metric){ 
+    
+    init_metric <- metric # Assigning the new metric to initial_metric
+    final_clust <- i
+    
+    }
+  
+  print(i)
+  
+}
+
+
+```
+
+So Running this multiple validation methods with 496 clusters dosent seem to work well. So let us stick to some manageable number and see how it fares
+
+```{r}
+set.seed(4)
+bat_km3 <- kmeans(Batmod_df1[,2:37],9,nstart = 50)
+
+bat_km3$tot.withinss
+
+bat_km3$size
+
+# Lets take 5 samples and take the rest of data and see them
+
+bat_km3 <- kmeans(Batmod_df1[,2:37],5,nstart = 50)
+
+bat_km3$tot.withinss
+
+bat_km3$size
+
+# Iteration 1 size
+
+bat_iteration1 <- data.frame(bat_km3$cluster)
+bat_iteration1 <- cbind(Bat_trans$Battery,bat_iteration1)
+
+names(bat_iteration1) <- c("Unique_Id","Clust9")
+
+iter1 <- bat_iteration1 %>% filter(Clusters != 4)
+
+# Iteration 2
+
+iter2 <- bat_iteration1 %>% filter(Clusters != 5)
+
+colnames(iter2)[2] <- "Clust2"
+
+iter2 <- merge(iter2,iter1,all.x = TRUE)
+
+# Iteration 3
+iter3 <- bat_iteration1 %>% filter(Clust3 != 1)
+
+
+iter3 <- merge(iter2,iter3,all.x = TRUE)
+
+# Iteration 4
+iter4 <- bat_iteration1 %>% filter(Clust4 != 5)
+
+
+iter4 <- merge(iter3,iter4,all.x = TRUE)
+
+# Iteration 5
+iter5 <- bat_iteration1 %>% filter(Clust5 != 5)
+
+
+iter5 <- merge(iter4,iter5,all.x = TRUE)
+
+# Iteration 6
+iter6 <- bat_iteration1 %>% filter(Clust6 != 3)
+
+
+iter6 <- merge(iter5,iter6,all.x = TRUE)
+
+# Iteration 9
+iter9 <- bat_iteration1 %>% filter(Clust9 != 5)
+
+
+iter9 <- merge(iter9,iter6,all.x = TRUE)
+
+# Checking for numbers of matching clusters
+
+iter9 %>% filter(!is.na(Clust6))
+
+iter9 %>% filter(is.na(Clust6))
+
+```
+
+So its seen that the clusters formed apart from the main cluster are all same. The batteries which exist in other clusters are also same.
+
+Also uptill cluster 6 , the clusters were of comparable size. 7,8 & 9 are another comparable size
+
+Also the numbers are also matching
+
+# Tomorrow
+
+We need to check each of the batteries within the cluster formed and check its charachteristics
+
+```{r}
+
+# Let us look at the conductance of select few of them
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% c("78D9B67A-3DB2-4018-BC21-01DDFE6DFC31","889DC298-B847-4926-BBA6-4641C0E27D1A","8A1A7209-845B-41CF-A7F9-5C1810E4D28F","8E477F7E-C70E-4A1B-8F20-CB31C101ECF6")) %>% filter(measure == "Conductance")
+
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% c("1CB8CCD5-C10A-4A3B-AA2A-ED20B0C98C14")) 
+
+Temp_bat_conductance  <- Temp_bat_consol %>% filter(measure %in% c("Conductance"))
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at values of DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure == "DOD")
+
+range(temp_dod$Variable)
+
+```
+
+# JMJPFU
+# 19-Oct-2016
+
+Let us try clustering with only 2 clusters and see how it goes
+
+```{r}
+
+set.seed(4)
+bat_km3 <- kmeans(Batmod_df1[,2:37],2,nstart = 30)
+
+bat_km3$tot.withinss
+
+bat_km3$size
+
+```
+
+Adding the new feature for SD in Batmod_df1
+
+```{r}
+
+Batmod_df1$SD <- Bat_Feat$SD
+
+bat_km3 <- kmeans(Batmod_df1[,2:38],2,nstart = 30)
+
+bat_km3$tot.withinss
+
+bat_km3$size
+
+# To identify the batteries in each cluster
+
+clust1 <- data.frame(bat_km3$cluster) # Two clusters
+
+clust1$Battery <- Batmod_df1$Battery
+clust1$SD <- Batmod_df1$SD
+
+clust1 %>% filter(bat_km3.cluster == 1)
+
+```
+
+
+Testing out the clusters
+
+```{r}
+
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% c("2C45D90F-0868-45D5-AC21-E4248EBC490F"))
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the conductance slopes
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us look only at the Discharge slopes
+
+Temp_dislope <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Discharge","DOD") )
+
+# Plotting some of the selected variables
+
+q5 <- ggplot(data=Temp_dislope,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us take Conductance and DOD together
+
+Temp_condod <- Temp_bat_consol %>% filter(measure %in% c("Conductance","DOD") )
+
+q5 <- ggplot(data=Temp_condod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Looking at one battery at a time and 
+
+unique(Temp_condod$Battery)
+
+# Set 1
+
+ "4EEC290B-9889-415C-8AA9-809010AC689E" "61B004A6-5374-4189-9826-639ACBF34BDF" "A93291D4-E5FA-4349-BDDF-1FB1944CF32E"
+ "1985E4FF-B61E-48CE-90F3-F22C138B7420", "2567A348-2E85-4C54-B24E-C69D3F85ACF3", "2F83C61C-2D65-45B2-ABF4-B48409BB5EA5"
+  "4AACC21F-C084-412F-8529-A8BC6A8F1143" "0A3909B6-9363-49B2-A244-8CD13517AD92" "5135D51E-6925-4DE3-A0B3-FBD3EF33E3C9"
+  
+# Set 2
+
+ "09CFEAE8-F67D-4FCE-8C29-16449B6A125A" "232EB385-0284-4B87-B646-2135EA8A18F2" "235698BE-4F3D-4252-ACCF-9B7149888A00"
+
+Temp_batcondod <- Temp_condod %>% filter(Battery == "0D9EB71C-4303-4BD8-93DE-0405D0220C5A")
+
+q5 <- ggplot(data=Temp_batcondod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+# Tomorrow
+
+1. Increase the number of clusters
+2. Do some sample models
+3. Remove the intercept and check out the clusters
+4. Re-think about the imputation of values
+
+# JMJPFU
+# 4-Nov-2016
+
+Let us now relook at the features and then include only the critical ones and try clustering
+
+# Trial 1 :
+
+As a first trial, let us only take the extraced features from the DOD% and Conductance % and see how it behaves
+
+
+
+```{r}
+
+#
+bat_clust1 <- Bat_Feat1_new %>% select(Battery,Plant,Site,String,Condrop,Dodbin,Dodtop,Dod80,Dod50,contop,con80,con50)
+
+# Imputing NA to any values with Inf
+
+for(i in 1:nrow(bat_clust1)){
+  print(i)
+  
+  for(j in 5:12)
+    
+    if(bat_clust1[i,j] == Inf){bat_clust1[i,j] <- NA }
+  
+}
+
+##########
+
+bat_clust1 <- bat_clust1[complete.cases(bat_clust1),] # just to ensure that there arent any NA / NAN values
+
+# Let us make the first cluster
+
+bat_km4 <- kmeans(bat_clust1[,5:12],2,nstart = 30)
+
+bat_km3$tot.withinss
+
+bat_km4$size
+
+# Let us add these clusters to the data frame and check
+
+bat_clust1$clust1 <- bat_km4$cluster
+
+# Let us do some filtering based on the cluster and check their mean values
+
+clust1 <- bat_clust1 %>% filter(clust1 == 1) %>% summarise(Avgcondrop = mean(Condrop,na.rm=TRUE),AvgDOD80 = mean(Dod80,na.rm=TRUE),AVGcon80=mean(con80,na.rm=TRUE))
+
+clust2 <- bat_clust1 %>% filter(clust1 == 2) %>% summarise(Avgcondrop = mean(Condrop,na.rm=TRUE),AvgDOD80 = mean(Dod80,na.rm=TRUE),AVGcon80=mean(con80,na.rm=TRUE))
+
+# Some more filtering
+
+range(bat_clust1 %>% filter(clust1 == 1) %>% select(Condrop)) # ,Dod80,con80,Condrop
+range(bat_clust1 %>% filter(clust1 == 2) %>% select(Condrop)) # ,Dod80,con80,Condrop
+
+
+
+```
+
+It seems the clusters are getting formed with respect to the DOD80 values. The first cluster is for those cells where the DOD80 values are high. 2 for those where it is very low. However other variable are not seperated much.
+
+Let us now try creating the combo score and then clustering 
+
+```{r}
+
+bat_clust1$compo <- ((bat_clust1$Dod50 * 5) + (bat_clust1$Dod80 * 3))* ((3*bat_clust1$con80) + (5*bat_clust1$con50))
+
+# Clustering again
+
+bat_km5 <- kmeans(bat_clust1[,c(5:12,14)],2,nstart = 30)
+
+bat_km4$tot.withinss
+
+bat_km5$size
+
+# Adding the cluster
+
+bat_clust1$clust2 <- bat_km5$cluster
+
+# Let us do some filtering based on the cluster and check their mean values
+
+clust1 <- bat_clust1 %>% filter(clust3 != 3) %>% summarise(Avgcondrop = mean(Condrop,na.rm=TRUE),AvgDOD80 = mean(Dod80,na.rm=TRUE),AVGcon80=mean(con80,na.rm=TRUE))
+
+clust2 <- bat_clust1 %>% filter(clust3 == 3) %>% summarise(Avgcondrop = mean(Condrop,na.rm=TRUE),AvgDOD80 = mean(Dod80,na.rm=TRUE),AVGcon80=mean(con80,na.rm=TRUE))
+
+# 
+
+clust2 <- bat_clust1 %>% filter(clust3 == 2)
+
+# Let us do some visualisation based on this cluster
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% clust2$Battery[c(7:13)]) # 1:3
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+Let us try the same with the second data set also
+
+
+```{r}
+
+bat_clust2 <- Bat_Feat_new %>% select(Battery,Plant,Site,String,Condrop,Dodtop,Dod80,Dod50,contop,con80,con50)
+
+# Imputing NA to any values with Inf
+
+for(i in 1:nrow(bat_clust2)){
+  print(i)
+  
+  for(j in 5:11)
+    
+    if(bat_clust2[i,j] == Inf){bat_clust2[i,j] <- NA }
+  
+}
+
+##########
+
+bat_clust2 <- bat_clust2[complete.cases(bat_clust2),] # just to ensure that there arent any NA / NAN values
+
+# Adding those additional fields
+
+bat_clust2$compo <- ((bat_clust2$Dod50 * 5) + (bat_clust2$Dod80 * 3))* ((3*bat_clust2$con80) + (bat_clust2$con50)) 
+
+# Clustering again
+
+bat_km6 <- kmeans(bat_clust2[,c(5:12)],3,nstart = 30)
+
+
+
+bat_km6$size
+
+# Adding the cluster
+
+bat_clust2$clust2 <- bat_km6$cluster
+
+clust3 <- bat_clust2 %>% filter(clust2 != 2)
+
+# Let us do some visualisation based on this cluster
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% clust3$Battery[1:6]) # 
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+
+
+```
+
+In the first pass, only 3 clusters were formed and 2 were for the outliers in conductance. Let us alter the score a little and change the con50 to 2 and then try
+
+When the value was changed to 2 from 5 then only 1 case of battery popped up. Let us now try the clustering with 3 clusters
+
+```{r}
+
+# Clustering again
+
+bat_km5 <- kmeans(bat_clust1[,c(5:12,14)],3,nstart = 30)
+
+
+
+bat_km5$size
+
+# Adding the cluster
+
+bat_clust1$clust3 <- bat_km5$cluster
+
+```
+
+Removed weight of second set for the Con50
+
+# JMJPFU
+9-Nov-2016
+
+Today we will start the modelling process. We will do the following steps today.
+1. Filter the data sets according to the filters identified during the exploratory stage
+2. Label the data sets
+3. Do some initial model with only two classes ; Failed battery & Normal battery.
+
+```{r}
+
+# Create new feature for the labels
+
+Bat_Feat1_new$label <- NA
+
+# Filtering based on our criteria and naming the labels
+
+class_Failed <- Bat_Feat1_new %>% filter(Condrop < 0.8,Dod80 > 10,con80 > 3)
+
+# First find the list of batteries that should be in normal
+
+bat_normal <- setdiff(Bat_Feat1_new$Battery,class_Failed$Battery) # Finding difference between the two sets
+
+class_normal <- Bat_Feat1_new %>% filter(Battery %in% bat_normal)
+
+# Let us label first
+
+class_Failed$label <- "Failed"
+class_normal$label <- "Normal"
+
+# Let us join them up
+
+bat_train <- rbind(class_Failed,class_normal)
+
+
+
+```
+
+Let us now take the key variables which should be selected for the modelling. The key variables should be
+
+1. Slopes of conductance accross time ( Need to remove all slopes from 11 to 15)
+2. % of dod bins
+3. % of conductance bins
+
+```{r}
+
+variable_list <- c("Battery","PD1sl","PD2sl","PD3sl","PD4sl","PD5sl","PD6sl","PD7sl","PD8sl","PD9sl","PD10sl","PD11sl","PD12sl","PD13sl","PD14sl","PD15sl","Condrop","Dodtop","Dod80","Dod50","contop","con80","con50","label")
+
+bat_train_sel1 <- bat_train %>% select(Battery,PD1sl,PD2sl,PD3sl,PD4sl,PD5sl,PD6sl,PD7sl,PD8sl,PD9sl,PD10sl,Condrop,Dodtop,Dod80,Dod50,contop,con80,con50,label)
+
+
+```
+
+Now we need to impute missing slope values into the variable list. 
+
+One strategy for imputing the slope value is to impute the previous slope to the missing value. Let us create a for loop for getting this done
+
+```{r}
+for(i in 1:nrow(bat_train_sel1)){
+  print(i)
+  
+  for(j in 3:11){
+    
+    if(is.na(bat_train_sel1[i,j])){ bat_train_sel1[i,j] <- bat_train_sel1[i,(j-1)]}
+    
+  }
+  
+}
+
+# Let us check the complete.cases
+
+nrow(bat_train_sel1[complete.cases(bat_train_sel1),]) # All 1000 cases have values
+  
+  
+```
+
+Now let us start the spot checking of the algorightms
+
+To get into spot checking of the algorithms, we first have to split data into test and training set 
+
+```{r}
+library(caret)
+library(klaR)
+
+# Define an 80% : 20% train/test split of the dataset
+
+trainIndex <- createDataPartition(bat_train_sel1$label,p=0.8,list=FALSE)
+dataTrain <- bat_train_sel1[trainIndex,]
+dataTest <- bat_train_sel1[-trainIndex,]
+
+# Train a naive Bayes model
+
+dataTrain$label <- as.factor(dataTrain$label)
+
+fit <- NaiveBayes(label~.,data=dataTrain[,2:19])
+
+# Its seen that the Dod50 variable has zero variance. Need to remove that
+
+dataTrain$Dod50 <- dataTest$Dod50 <- NULL
+
+# Fitting again
+
+fit <- NaiveBayes(label~.,data=dataTrain[,2:18])
+
+# Let us make predictions
+
+predictions <- predict(fit,dataTest[,2:17])
+
+# Summarize results
+
+confusionMatrix(predictions$class,dataTest$label)
+
+```
+
+So by Gods Grace the first attempt is reasonably good. The sensitivity is very good indicating that the seperation of the problem cases from others is reasonably good. Let us now get into spot checking the algorithm with various algorithms and also doing cross validation.
+
+# Bootstrapping example
+
+```{r}
+trainCon <- trainControl(method="boot",number = 100)
+
+# Evaluate the model
+fit <- train(label~.,data=dataTrain[,2:18],trControl = trainCon,method="nb")
+
+# Display the results
+print(fit)
+
+
+```
+Let us check out on the prediction
+
+```{r}
+# Let us make predictions
+
+predictions <- predict(fit,dataTest[,2:16])
+
+# Summarize results
+
+confusionMatrix(predictions,dataTest$label)
+
+
+
+```
+# K Fold cross validation example
+
+```{r}
+trainCon <- trainControl(method="cv",number = 10)
+
+# Evaluate the model
+
+fit <- train(label~.,data=dataTrain[,2:18],trControl=trainCon,method="nb")
+
+# Display results
+print(fit)
+
+```
+# Repeated K fold cross validation example
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats = 3)
+# Evaluate models
+fit <- train(label~.,data = dataTrain[,2:17],trControl=trainCon,method="nb")
+
+# Printing the results
+print(fit)
+
+```
+
+# Leave one out Cross validation
+
+```{r}
+trainCon <- trainControl(method = "LOOCV")
+
+# Evaluate the model
+
+fit <- train(label~.,data = dataTrain[,2:18],trControl=trainCon,method="nb")
+
+# Con50 also has very low variance removing that too
+
+dataTrain$con50 <- dataTest$con50 <- NULL
+
+# Fitting the model again
+
+fit <- train(label~.,data = dataTrain[,2:17],trControl=trainCon,method="nb")
+# Printing the results
+print(fit)
+
+```
+Let us now use some evaluation metrics available in caret for testing the accuracy of the model
+
+```{r}
+trainCon <- trainControl(method="cv",number = 5)
+set.seed(7)
+
+fit <- train(label~.,data = dataTrain[,2:17],trControl=trainCon,method="glm",metric="Accuracy")
+
+# Printing results
+print(fit)
+
+
+```
+# Accuracy using ROC curves
+
+```{r}
+trainCon <- trainControl(method="cv",number = 5,classProbs = TRUE,summaryFunction = twoClassSummary)
+
+set.seed(7)
+
+fit <- train(label~.,data = dataTrain[,2:17],trControl=trainCon,method="glm",metric="ROC")
+
+# Display results
+print(fit)
+
+
+```
+# JMJPFU
+# 10-Nov-2016
+
+Logarithmic Loss functions
+
+```{r}
+trainCon <- trainControl(method="cv",number = 5,classProbs = TRUE,summaryFunction = mnLogLoss)
+
+set.seed(7)
+fit <- train(label~.,data=dataTrain[,2:17],method="rpart",metric="logLoss",trControl=trainCon)
+
+# Display results
+print(fit)
+
+```
+
+# Spot Checking Algorithms
+
+Now let us spot check various algorithms and then identify the most suitable algorithm for the problem.
+
+# GLM
+
+```{r}
+fit <- glm(label~.,data=dataTrain[,2:17],family=binomial(link='logit'))
+# Summarise the fit
+print(fit)
+# Make Predictions
+probabilities <- predict(fit,dataTest[,2:16],type="response")
+predictions <- ifelse(probabilities > 0.5,"Normal", "Failed")
+
+# Summarizing prediction
+table(predictions,dataTest[,17])
+
+```
+The sensitivity achieved is around 50%.
+Let us use the glm algorithm in caret
+
+```{r}
+set.seed(7)
+trainCon <- trainControl(method="cv",number = 5)
+fit.glm <- train(label~.,data=dataTrain[,2:17],method="glm",metric= "Sensitivity",preProcess = c("center","scale"),trControl=trainCon )
+
+# Printing the fit
+print(fit.glm)
+
+# Doing predictions
+
+predictions <- predict(fit.glm,dataTest[,2:16])
+
+table(predictions,dataTest[,17])
+
+```
+
