@@ -378,13 +378,105 @@ plot(fit.svmTune)
 ```
 
 
-
-
-
-
-
-
 # Errors & Notes
 
 1. For the metric ROC, it is required to put classProbs = TRUE
 2. There was another error which cropped when the metric ROC was used. The name of the label with underscore in it created problems. The class names have to be re-worked . However for the time being, let us change the metric from ROC and try Accuracy. Also the classProbs have to be kept as fALSE
+
+# JMJPFU
+## 9-Jan-2017
+
+Today we will start the prediction process for the benchmark model. We will try modelling with both the KNN and SVM models. In addition we will also try out other models which were used for the training purpose to see how the results fare.
+
+# 5 : Predicting the baseline model
+
+## 5. a Prediction with the KNN model.
+
+In the process of predicting using the KNN model in caret, we do not have to store a model. We have to take the training data and also the validation data and then use the parameters we got after the tunining process and do the prediction. For a check on the model accurcy let us also include the minority cases along with the validation data set.
+
+## Preparing the data for prediction
+
+```{r}
+
+# Validation set preperation by adding minority classes from the training set
+
+minorityData <- batDataset[batDataset$label != "Normal_Period",]
+
+validationSet <- rbind(validationSet,minorityData) # Mising this data with the validationSet
+
+
+```
+
+## Prediction on the validation set
+
+```{r}
+
+set.seed(7)
+
+validationSet$predict1 <- knn3Train(batDataset[,5:15],validationSet[,5:15],batDataset$label,k=8,prob = FALSE)
+
+confusionMatrix(validationSet$predict1,validationSet$label)
+```
+
+Let us look at a table of prediction
+
+```{r}
+table(validationSet$predict1)
+```
+
+# Notes on prediction
+
+1. When predicting with knn3Train() method, the traning set should not contain the labels. The labels should be represented seperately in the prediction part.
+
+
+As seen from the prediction, the sensitivity of the other minority classes are zero. All the cases were tagged as normal_period. This result was what was expected. We will try to improve this through various methods like 
+1. Transformations
+2. Minority balancing
+
+Let us in the mean time look up on some of the Confusion Matrix matrices definition.
+
+## 1 : Prevelence
+
+ Number of instances of a classs / total number of records 
+ 
+ = 3/2083 for the minority classes ( 0.00144)
+ 
+ = 2059/2083 for the majority class ( 0.98847)
+ 
+## 2 : Sensitivity
+
+= Number of instances of a class correctly predicted / Total number of instances of that class present
+
+= 0/ 3 ( for minority classes)
+= 2059/2059 ( for majority class)
+
+## 3 : Specificity
+
+Specificity is similar to the Sensitivity in that it looks for the same metric in the negative class.
+
+= Number of instances of the -ve class correctly predicted / Total number of instances of the -ve class
+
+## 4 : Positive Predictive Value
+
+It is the proportion of the correctly predicted +ve values to the total number of positive values
+
+= Correcly predicted +ve class / Total number of +ve class predicted
+
+ = 2059/2059 ( for majority class)
+ 
+ = 0/0 ( for minority class)
+
+## 5 : Negative Predictive Value
+
+Similar metric for negative class.
+
+ = 2080/2083 ( for each minority class)
+ 
+ = 0/0 ( majority class)
+
+
+## Prediction using SVM
+
+In the next pass we will try the prediction exercise using SVM and observe the results
+
+
