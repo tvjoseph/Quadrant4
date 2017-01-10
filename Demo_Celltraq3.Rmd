@@ -1,0 +1,1759 @@
+---
+title: "Demo_Celltraq3"
+author: "Quadrant-4"
+date: "October 19, 2016"
+output: html_document
+---
+The first trail which was taken for identification of batteries that were failing was to look at drop in conductance. Any big drop in conductance followed by rise to the original level was construed as an indicator for a failing battery. However that condition alone dosent guarentee a failing battery. To ascertain further, a second dimension was added along with the conductance and that was the discharge voltage and current. Along with the discharge voltage and current the terminal voltage and Temperature were also included. Below is the analysis after incorporating these set of variables.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+```
+
+Predominantly two types of trends were observed in the shape of the discharge voltage profile. The first one is a Cup shaped profile and the other is a v shaped profile. Let us first look at the cup shaped profile.
+
+# Trend 1 : Cup shaped profile
+
+Sample Batteries
+"2F83C61C-2D65-45B2-ABF4-B48409BB5EA5"
+"0124308E-E6E8-4AE7-ABBE-E56561FE8CC0"
+```{r}
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "2F83C61C-2D65-45B2-ABF4-B48409BB5EA5")
+
+#Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "0124308E-E6E8-4AE7-ABBE-E56561FE8CC0")
+
+Temp_bat_consol <- Temp_bat_consol %>% filter(measure %in% c( "Voltage","Conductance","Current"))
+
+# High Level plotting
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+This cup shaped profile is associated with three charachteristics.
+
+1. Each cup shaped profile is an occurance at certain periods of time. One cup shaped profile is a set of continuous readings over a day in which probably measurement was taken
+2. Sudden drop in discharge voltage and then the voltage remaining at the lower level for some period of time. 
+
+3. Typical batteries show the "Coup de fouet" effect. What needs to be verified for this battery are the following
+
+  - Is the drop observed in the voltage as per specifications of the battery manufacturer ? 
+  - Is it the normal testing procedure to keep on increasing the current drawn ? Isnt it supposed to be constant current ?
+  - Is the rise in voltage to the original level even though the current drawn increased a natural phenomenon ? 
+  
+  Let us look closely at one of the cup shaped profile
+
+```{r}
+
+# Dates in which the discharge profile is taken
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# 2013-02-28
+# 2013-09-10
+# 2013-09-12
+
+# Focussing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-09-10" & measure != "Conductance")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Focusing on specific times 2014-01-16 14:33:21
+
+Temp_bat_spot1 <- Temp_bat_consol %>% filter(Date1 > "2013-09-10 16:44:07 IST" & Date1 < "2013-09-10 16:45:07 IST") # 
+
+q6 <- ggplot(data=Temp_bat_spot1,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q6 + theme(axis.text.x=element_text(angle=70,hjust=1))
+```
+
+So as can be seen from the profile :
+1. Each of the discharge voltage is a small "Coup de fouet" effects
+2. The voltage dipping with increasing current
+3. However the question is how does the voltage suddently increases ?
+
+Other questions which needs to be asked is
+
+1. Does the discharge profile at constant current follow the manufacturers specified profile ?
+2. Is the DOD attained within the acceptable limits ?
+
+
+# Trend II : W shaped profile
+
+Batteries
+"21CACF45-93A9-40BC-9298-3987DD1881F8"
+
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "21CACF45-93A9-40BC-9298-3987DD1881F8")
+
+Temp_bat_consol <- Temp_bat_consol %>% filter(measure %in% c( "Voltage","Conductance","Current"))
+
+# Plotting all variables together
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+Some observations from this profile are the following
+
+1. This type of discharge profile is followed by a large number of "w" profile. 
+2. The current is predominantly kept constant and dosent have the rising profile as the earlier case.
+
+Let us look at each of the "W" profile closely
+
+```{r}
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# 2012-09-24 ,2012-11-08, 2013-01-10, 2013-03-07, 2013-04-17, 2013-05-09, 2013-06-10, 2013-07-10, 2013-08-09, 2014-01-10, 2014-04-09 , 2014-06-12, 2014-07-11, 2014-08-01, 2014-08-02, 2014-09-11, 2014-11-14, 2014-12-12, 2015-01-08, 2015-03-13
+
+# Focusing on specific dates
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2012-11-08")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10))
+
+```
+
+As noted from the plots here are the observations.
+
+1. This "W" profile is a combination of two "Coup de fouet" like discharge profiles taken within intervals of 1 minute gap. Each of the readings are taken at 30 seconds interval each.
+
+2. These "W" profile dosent show any big drop in DOD nor does it show any big discharge slopes. Could be unlikely candidates for failing batteries.
+
+3 Need to know the acceptable discharge profile at 30 seconds interval to check if the slope of discharge or charge is as per acceptable limits as prescribed by the manufacturer.
+
+
+# Next level of Details : Adding Discharge and Charge slopes and DOD values.
+
+As a next level the slope of the discharge and charge profile were calculated along with the depth of discharge and then added as seperate features in the data. Let us see the plots adding those details also. 
+
+Let us look at those cases for similar discharge profiles
+
+# Trend 1 : Cup like profiles
+
+Batteries
+
+"11E1F01B-39CA-41FC-AF37-863543C1A427"
+
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "11E1F01B-39CA-41FC-AF37-863543C1A427")
+
+
+# Plotting all variables together
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+The following points needs to be noted.
+
+1. Discharge slope per-se dosent indicate anything. It would be more meaningful if it is compared against the discharge profile prescribed by the battery manufacurer
+2. A higher discharge slope as a matter of fact should be a matter of concern as it indicated sudden drops in voltage within a certain period of time. However it might not be a concern if it is within the manufacturers acceptable limits
+3. What needs to be looked at is whether the DOD has gone below the 80% mark.
+
+Let us look at little more closer at the dates
+
+```{r}
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# 2013-03-01 , 2013-09-11, 2013-11-30, 2014-01-16, 2014-02-26, 2014-03-26, 2014-05-01, 2014-06-07
+
+# Focusing on specific dates
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2014-01-16")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10))
+
+
+```
+
+The following can be observed
+
+1. The first voltage discharge profile is the expected discharge profile at a constant current. The typical "Coup de Fouet" effect of discharge
+2. The slopes of discharge are pretty higher than the rest during this period than the rest
+3. The depth of discharge for the first profile is at a more acceptable range of 0.850. The DOD has been calculated from the float voltage level ( 2.3 and 13.4 )
+4. We can see a constant degradation of DOD level to the sub .8 levels when the current drawn is increased.
+
+Let us look closely at some specific time periods
+
+```{r}
+
+# Focusing on specific times 2014-01-16 14:33:21
+
+Temp_bat_spot1 <- Temp_bat_consol %>% filter(Date1 > "2014-01-16 14:33:21 IST" & Date1 < "2014-01-16 14:34:21 IST") # 
+
+q6 <- ggplot(data=Temp_bat_spot1,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q6 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+Observations from this graph are the following
+
+1. Constant drop in discharge voltage with varying current. All the discharge voltage following the "CDF" effect
+2. DOD keeps on falling.
+3. The slope of the discharge is variable and dosent show any specific trends. Again slope of discharge per-se dosent matter what matters is its comparison with the manufacturers prescribed profile.
+
+# Trend II : "W" profiles
+
+Batteries
+
+"2E108B85-4D21-4A29-8947-0A9CE5033354"
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "2E108B85-4D21-4A29-8947-0A9CE5033354")
+
+
+# Plotting all variables together
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Taking only specific dates
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# 2012-09-24,2012-11-08,2013-01-10,2013-03-07,2013-04-17,2013-05-09,2013-06-10,2013-07-10,2013-08-09,2014-01-10,2014-04-09, 2014-06-12,2014-07-11,2014-08-01,2014-08-02,2014-09-11,2014-11-14,2014-12-12,2015-01-08,2015-03-13
+
+# Focusing on specific dates
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-01-10")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10))
+
+
+
+```
+
+Observations
+1. The discharge profile is a combination of two "CDF" effects 
+2. DOD is not very low
+3. The Discharge slope is also not very high
+
+# Perspective II : Looking from the perspective of low DOD
+
+All these analyses were looked from a different perspective i.e from the perspective of the DOD reached. Some of the lowest DOD profiles were taken and analysed to see if there was something significant in any of the profiles. Let us look at the plots
+
+```{r}
+
+# Set 1 Ranges
+
+dod_ranges <- bat_newfeat4 %>% filter(measure == "DOD" & Variable < 0.65)
+
+range(dod_ranges$Variable)
+
+unique(dod_ranges$Battery)
+
+# Set 2 Ranges
+
+dod_ranges2 <- bat_newfeat3 %>% filter(measure == "DOD") %>% filter(Variable < 0.65)
+
+range(dod_ranges2$Variable)
+
+unique(dod_ranges2$Battery)
+
+
+# Some sample batteries
+
+# Set 1
+
+#1
+
+a <- c("4EEC290B-9889-415C-8AA9-809010AC689E", "61B004A6-5374-4189-9826-639ACBF34BDF", "A93291D4-E5FA-4349-BDDF-1FB1944CF32E")# - All
+
+b <- c("1985E4FF-B61E-48CE-90F3-F22C138B7420", "2567A348-2E85-4C54-B24E-C69D3F85ACF3", "2F83C61C-2D65-45B2-ABF4-B48409BB5EA5")
+
+c <- c("0124308E-E6E8-4AE7-ABBE-E56561FE8CC0", "0A3909B6-9363-49B2-A244-8CD13517AD92", "11E1F01B-39CA-41FC-AF37-863543C1A427")
+
+d <- c("1985E4FF-B61E-48CE-90F3-F22C138B7420", "2567A348-2E85-4C54-B24E-C69D3F85ACF3" ,"2F83C61C-2D65-45B2-ABF4-B48409BB5EA5")
+
+e <- c("4AACC21F-C084-412F-8529-A8BC6A8F1143", "4EEC290B-9889-415C-8AA9-809010AC689E", "5135D51E-6925-4DE3-A0B3-FBD3EF33E3C9")
+
+ "58CC8861-5D3C-4987-9DFF-F27042E5C1DF" "61B004A6-5374-4189-9826-639ACBF34BDF" "64F34D08-282D-47D9-9BF0-82E242C1C966"
+ "71EB5F40-1DCA-4080-8BDC-4E93448A9357" "8E477F7E-C70E-4A1B-8F20-CB31C101ECF6" "98710F7E-31A2-4C16-9086-8A80EECFC35B"
+"A11F3905-0DAF-41B5-BE40-FCA93F8D757D" "A93291D4-E5FA-4349-BDDF-1FB1944CF32E" "B1FE80C1-C000-4775-9EAE-DA4FB922524C"
+"CF6432BD-8444-4D5E-838A-3B7315624036" "E1F8B3C5-32EA-426D-9562-F93E5339F853" "E2B52C79-205D-4F70-9803-D0702A4DFB9F"
+
+
+
+
+# Set 2
+
+#2# "09CFEAE8-F67D-4FCE-8C29-16449B6A125A", "232EB385-0284-4B87-B646-2135EA8A18F2", "235698BE-4F3D-4252-ACCF-9B7149888A00" - None
+#3# "2285CBAA-641A-48B6-B4E8-79E91E6F85FC","06282A3E-00CC-40C8-B83F-0069AF5A5CD4", "0EA6373E-7A6C-41BA-B919-03A4C6D7D798" - One
+
+#4 "03EA68A5-D566-43C2-BC63-B68A33CB13C9","266F1061-0727-42A2-87AE-5570FFE85FCF","20D7E810-2EAE-49F9-86ED-685BCC555992"
+
+################ Complete set less than .5 ########################################
+
+f <- c("00012A4A-C849-4CA0-9D9F-22075A840ACE","01F70DD8-CEF8-438F-BB9B-C396442D1C0B","037B12AB-33DB-4431-AA63-66E26EB25FB6")
+g<-c("03BF00C5-87FB-47C0-93CC-3DFDE313616D","03EA68A5-D566-43C2-BC63-B68A33CB13C9","040B43B2-1362-4797-9307-CC465FE92981")
+ h<-c("05E5868E-C1C6-4868-B0AD-F7E4E0409487","06282A3E-00CC-40C8-B83F-0069AF5A5CD4","0750E3A2-282D-4DA4-A127-296B003F4E6C")
+j<-c("0841A30F-8F0B-47BD-B0B4-EB64ABB80AAF","08FEFD35-3E19-4B4C-A583-E8F6E4435B40","0925F865-3DD6-46FA-A665-0C28FCF35703")
+k<-c("09CFEAE8-F67D-4FCE-8C29-16449B6A125A","0BAE60C1-8544-4A02-BDCC-0F55C713A603","0D9EB71C-4303-4BD8-93DE-0405D0220C5A")
+[16] "0DA130B9-A6FA-495C-B055-1CB1C3342FFC" "0E0FC040-EA24-4F5E-B018-2D857B707BCF" "0EA6373E-7A6C-41BA-B919-03A4C6D7D798"
+[19] "0FD34642-BEBE-48EA-9706-E8D3EDC354E4" "11BC4F2F-E537-4728-9E99-D23252094FF7" "1211FFB8-1F71-4CC5-868E-ADEA827B349A"
+[22] "1218123D-0AD5-4078-9897-BC003388531A" "12C3C3BF-6A0C-457A-82BE-E91A47D4E8D1" "135DB8D5-33B6-4C82-802C-1B9EFE6856C4"
+[25] "16EF5931-58DE-4ADD-B3C5-B89855455C5D" "1706271B-4FD2-471E-85BA-D4C37F386E7C" "198750AA-D22E-4419-9A05-5B6C46E705F1"
+[28] "1BCFE259-3A09-482B-85F8-79D3D47EE661" "1CF6EBE5-92B2-484B-95FF-D9FC654EAF4B" "1F8766E7-8194-4F66-AEAB-3A6EF56FE6E4"
+[31] "20D7E810-2EAE-49F9-86ED-685BCC555992" "2285CBAA-641A-48B6-B4E8-79E91E6F85FC" "22E9EA80-DD96-4CE7-98F8-BE69923D446B"
+[34] "232EB385-0284-4B87-B646-2135EA8A18F2" "23392D91-D6F4-451C-AB2F-FF327B47FF26" "235698BE-4F3D-4252-ACCF-9B7149888A00"
+[37] "24FD6B2C-97D1-4119-95A3-56BFC8388679" "266F1061-0727-42A2-87AE-5570FFE85FCF" "271F77CC-2C45-4F1F-AEED-1B7EF479AFE1"
+[40] "27A13F6E-1022-42D4-998A-C2C41FE91FCA" "27F44577-2A51-4A28-8750-3D8675174D97" "285C9918-F3A3-427A-A56D-0E965EB81008"
+[43] "292D1A93-210E-4448-A009-13D6830FB0C1" "2946E05B-5A15-428D-A6B0-AD65DFD8B6E6" "2C402309-CA39-4965-B2C4-E8E1C07EE23E"
+[46] "2C4AF4B2-73EB-4E9B-9317-9DD753220B31" "2C86E629-BCF9-45F0-AD5F-E645F2DD3A6B"
+
+
+```
+
+Let us plot the profiles of these batteries
+
+```{r}
+# Set 1
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("00AB6F4B-6517-4546-B852-A2CDF4DCAAF0"))
+
+# Set 2
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% c("00AB6F4B-6517-4546-B852-A2CDF4DCAAF0"))
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the conductance slopes
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us look only at the Discharge slopes
+
+Temp_dislope <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Discharge","DOD") )
+
+# Plotting some of the selected variables
+
+q5 <- ggplot(data=Temp_dislope,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us take Conductance and DOD together
+
+Temp_condod <- Temp_bat_consol %>% filter(measure %in% c("Conductance","DOD") )
+
+q5 <- ggplot(data=Temp_condod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Looking at one battery at a time and 
+
+unique(Temp_condod$Battery)
+
+# Set 1
+
+ "4EEC290B-9889-415C-8AA9-809010AC689E" "61B004A6-5374-4189-9826-639ACBF34BDF" "A93291D4-E5FA-4349-BDDF-1FB1944CF32E"
+ "1985E4FF-B61E-48CE-90F3-F22C138B7420", "2567A348-2E85-4C54-B24E-C69D3F85ACF3", "2F83C61C-2D65-45B2-ABF4-B48409BB5EA5"
+  "4AACC21F-C084-412F-8529-A8BC6A8F1143" "0A3909B6-9363-49B2-A244-8CD13517AD92" "5135D51E-6925-4DE3-A0B3-FBD3EF33E3C9"
+  
+# Set 2
+
+ "09CFEAE8-F67D-4FCE-8C29-16449B6A125A" "232EB385-0284-4B87-B646-2135EA8A18F2" "235698BE-4F3D-4252-ACCF-9B7149888A00"
+
+Temp_batcondod <- Temp_condod %>% filter(Battery == "0D9EB71C-4303-4BD8-93DE-0405D0220C5A")
+
+q5 <- ggplot(data=Temp_batcondod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+# Set 1 : From the first set of batteries, these are the observations
+
+1. For all the three cases where the DOD has falled to very low levels, the conductance has shown a trend of decreasing and then regaining the original level.
+2. The DOD levels which are low are showing some continuous readings at the same level
+3. There is at least one point in time when the conductance has falled to lesser than 1/2 its original level or lower some cases 1/4 and 1/3
+4. A good indicator of failure can be large SD for conductance along with more than 1 cases of sub .5 DOD levels
+
+# Set 2 :From Second set of batteries
+1. Very less number of instances where DOD is very low
+2. The fall in conductance is not that stark
+3. However the conductance slope shows some steep slopes
+
+
+# Next steps
+
+1. If this condition denotes failing batteries then do some labelling for cases where the conductance SD is high and DOD is low
+2. Look back in time from the instance of low conductance and label different time periods
+3. Run some sample models and check how good the models are
+4. More variables like age of battery ? Load factor ? Temperature etc to be included
+
+# Testing batteries
+# 20-Oct-2016
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("64F34D08-282D-47D9-9BF0-82E242C1C966"))
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% c("0E0FC040-EA24-4F5E-B018-2D857B707BCF", "0EA6373E-7A6C-41BA-B919-03A4C6D7D798"))
+
+# Printing
+
+Temp_condod <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_condod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# DOD
+Temp_condod <- Temp_bat_consol %>% filter(measure %in% c("DOD") )
+
+q5 <- ggplot(data=Temp_condod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+ <- 65
+"4EEC290B-9889-415C-8AA9-809010AC689E" "58CC8861-5D3C-4987-9DFF-F27042E5C1DF" "61B004A6-5374-4189-9826-639ACBF34BDF"
+[4] "98710F7E-31A2-4C16-9086-8A80EECFC35B" "A93291D4-E5FA-4349-BDDF-1FB1944CF32E"
+
+< .8
+
+"0124308E-E6E8-4AE7-ABBE-E56561FE8CC0" "0A3909B6-9363-49B2-A244-8CD13517AD92" "11E1F01B-39CA-41FC-AF37-863543C1A427"
+ [4] "1985E4FF-B61E-48CE-90F3-F22C138B7420" "2567A348-2E85-4C54-B24E-C69D3F85ACF3" "2F83C61C-2D65-45B2-ABF4-B48409BB5EA5"
+ [7] "4AACC21F-C084-412F-8529-A8BC6A8F1143" "4EEC290B-9889-415C-8AA9-809010AC689E" "5135D51E-6925-4DE3-A0B3-FBD3EF33E3C9"
+[10] "58CC8861-5D3C-4987-9DFF-F27042E5C1DF" "61B004A6-5374-4189-9826-639ACBF34BDF" "64F34D08-282D-47D9-9BF0-82E242C1C966"
+[13] "71EB5F40-1DCA-4080-8BDC-4E93448A9357" "8E477F7E-C70E-4A1B-8F20-CB31C101ECF6" "98710F7E-31A2-4C16-9086-8A80EECFC35B"
+[16] "A11F3905-0DAF-41B5-BE40-FCA93F8D757D" "A93291D4-E5FA-4349-BDDF-1FB1944CF32E" "B1FE80C1-C000-4775-9EAE-DA4FB922524C"
+[19] "CF6432BD-8444-4D5E-838A-3B7315624036" "E1F8B3C5-32EA-426D-9562-F93E5339F853" "E2B52C79-205D-4F70-9803-D0702A4DFB9F"
+
+
+# Sample II < .65
+
+[1] "00012A4A-C849-4CA0-9D9F-22075A840ACE" "00347E19-26E5-49DE-AC6C-D915DE7131DB" "01F70DD8-CEF8-438F-BB9B-C396442D1C0B"
+ [4] "037B12AB-33DB-4431-AA63-66E26EB25FB6" ,"03BF00C5-87FB-47C0-93CC-3DFDE313616D", "03EA68A5-D566-43C2-BC63-B68A33CB13C9"
+ [7] "040B43B2-1362-4797-9307-CC465FE92981" "05E5868E-C1C6-4868-B0AD-F7E4E0409487" "0610EDAC-7123-4098-832D-11221259A069"
+[10] "06282A3E-00CC-40C8-B83F-0069AF5A5CD4" "0750E3A2-282D-4DA4-A127-296B003F4E6C" "0841A30F-8F0B-47BD-B0B4-EB64ABB80AAF"
+a <-c("08FEFD35-3E19-4B4C-A583-E8F6E4435B40", "0925F865-3DD6-46FA-A665-0C28FCF35703", "09CFEAE8-F67D-4FCE-8C29-16449B6A125A")
+b<-c("0BAE60C1-8544-4A02-BDCC-0F55C713A603","0D9EB71C-4303-4BD8-93DE-0405D0220C5A", "0DA130B9-A6FA-495C-B055-1CB1C3342FFC")
+c<-c("0E0FC040-EA24-4F5E-B018-2D857B707BCF", "0EA6373E-7A6C-41BA-B919-03A4C6D7D798", "0FD34642-BEBE-48EA-9706-E8D3EDC354E4")
+d<-c("0FDA167A-FD8A-4374-8458-256067993227", "11BC4F2F-E537-4728-9E99-D23252094FF7", "1211FFB8-1F71-4CC5-868E-ADEA827B349A")
+e<-c("1218123D-0AD5-4078-9897-BC003388531A", "12C3C3BF-6A0C-457A-82BE-E91A47D4E8D1", "135DB8D5-33B6-4C82-802C-1B9EFE6856C4")
+f<-c("15606E32-B634-44DB-A981-F550A60DDF03", "16EF5931-58DE-4ADD-B3C5-B89855455C5D" ,"1706271B-4FD2-471E-85BA-D4C37F386E7C")
+g<-c("198750AA-D22E-4419-9A05-5B6C46E705F1", "1BCFE259-3A09-482B-85F8-79D3D47EE661", "1CF6EBE5-92B2-484B-95FF-D9FC654EAF4B")
+h<-c("1D9513B2-3AC9-4DE8-98A8-C5525C97446C", "1F2CF22E-2411-4BE3-AF05-BF25A9E2EC61", "1F8766E7-8194-4F66-AEAB-3A6EF56FE6E4")
+i<-c("20CA2342-874B-4325-A8FF-EFD177D00A9A", "20D7E810-2EAE-49F9-86ED-685BCC555992", "2285CBAA-641A-48B6-B4E8-79E91E6F85FC")
+j<-c("22E9EA80-DD96-4CE7-98F8-BE69923D446B", "232EB385-0284-4B87-B646-2135EA8A18F2", "23392D91-D6F4-451C-AB2F-FF327B47FF26")
+k<-c("235698BE-4F3D-4252-ACCF-9B7149888A00", "24FD6B2C-97D1-4119-95A3-56BFC8388679" ,"266F1061-0727-42A2-87AE-5570FFE85FCF")
+l<-c("271F77CC-2C45-4F1F-AEED-1B7EF479AFE1", "27A13F6E-1022-42D4-998A-C2C41FE91FCA" ,"27F44577-2A51-4A28-8750-3D8675174D97")
+m<-c("285C9918-F3A3-427A-A56D-0E965EB81008", "292D1A93-210E-4448-A009-13D6830FB0C1", "2946E05B-5A15-428D-A6B0-AD65DFD8B6E6")
+n<-c("2C402309-CA39-4965-B2C4-E8E1C07EE23E", "2C4AF4B2-73EB-4E9B-9317-9DD753220B31", "2C86E629-BCF9-45F0-AD5F-E645F2DD3A6B")
+
+
+# JMJPFU
+# 21-Oct-2016
+
+We have to look at those cases where it has shown similarity in Sample II and then look at the Plant and string details for those batteries
+
+# Lot 1 6 out of 52 which showed dropping trends
+
+```{r}
+
+lot1 <- c("0EA6373E-7A6C-41BA-B919-03A4C6D7D798","0FDA167A-FD8A-4374-8458-256067993227","15606E32-B634-44DB-A981-F550A60DDF03","1F2CF22E-2411-4BE3-AF05-BF25A9E2EC61","20CA2342-874B-4325-A8FF-EFD177D00A9A","285C9918-F3A3-427A-A56D-0E965EB81008")
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% lot1)
+
+# Taking only the conductance values
+
+Temp_condod <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_condod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Taking the relevant data
+
+lot1_string <- unique(Temp_bat_consol %>% select(Battery,Plant,Site,String)) # Taking the Plant and String details
+
+write.csv(lot1_string,"lot1.csv")
+
+
+```
+
+Another perspective we need to take is to find those batteries among the 1000 who have SD > 200 and then look at their DOD and the drop conductance
+
+```{r}
+
+lot2_batteries <- Bat_Feat %>% filter(SD > 200) %>% select(Battery) # 22 Cases
+
+batlot <- c("00AB6F4B-6517-4546-B852-A2CDF4DCAAF0","0124308E-E6E8-4AE7-ABBE-E56561FE8CC0","054A7AD2-3658-42DD-98D0-454AC2EA3148","060D5809-7344-4584-8E50-CECCBBA86918","0A3909B6-9363-49B2-A244-8CD13517AD92","0F706661-D706-4702-A218-E8375E889A5C","11E1F01B-39CA-41FC-AF37-863543C1A427","11E51D42-5518-4649-A989-3BABDA09FD85","130079EA-F653-4D90-B41A-A1D24074A9C6","14525931-DD65-4E15-A1C6-C1AF1588B9FC","14D1CFC2-1728-4139-99C3-184372F04359","1985E4FF-B61E-48CE-90F3-F22C138B7420","1B399EC5-A1E6-4958-89FD-A27B374E58B0","1BB0B287-453B-4123-9DA5-AF6F6596B28F","21CACF45-93A9-40BC-9298-3987DD1881F8","240068B8-FFD3-4E00-8E85-E1B49812D801","240ABBCD-0DB6-4529-A2B9-9174065F2041","2567A348-2E85-4C54-B24E-C69D3F85ACF3","258938AD-042B-478A-A67D-EAB6E5BC3593","26152E5F-D06A-4261-84BF-E6CB159129CC","2AFFC832-946C-49B7-8600-1E4E639CD3EF","2B3F6CBD-9815-4CD8-A0CD-65A691ED432E")
+
+# Taking the relevant DOD and Conductance data
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% batlot)
+
+# Take different bins of SD of conductance and see trends
+
+# Bin SD > 200 and DOD < 0.8 
+
+lot2 <- c("0124308E-E6E8-4AE7-ABBE-E56561FE8CC0","0A3909B6-9363-49B2-A244-8CD13517AD92","11E1F01B-39CA-41FC-AF37-863543C1A427","1985E4FF-B61E-48CE-90F3-F22C138B7420","2567A348-2E85-4C54-B24E-C69D3F85ACF3")
+
+lot2 <- data.frame(lot2)
+names(lot2) <- "Battery"
+
+
+# Bin SD > 200 and DOD < 0.9 & DOD > 0.8
+
+lot3 <- unique(Temp_bat_consol %>% filter(measure == "DOD") %>% filter(Variable > .8 & Variable < 0.85) %>% select(Battery))
+
+lot3 <- setdiff(lot3,lot2) # Taking only those batteries which were not part of lot 2
+
+# Bin SD > 200 and DOD < 0.95 & DOD > 0.85
+
+lot4 <- unique(Temp_bat_consol %>% filter(measure == "DOD") %>% filter(Variable > .85 & Variable < 0.95) %>% select(Battery))
+lot4 <- setdiff(lot4,lot3)
+
+# Finding the plots
+
+Temp_bat_lot2 <- Temp_bat_consol %>% filter(Battery %in% lot4$Battery & measure == "Conductance")  #
+
+q5 <- ggplot(data=Temp_bat_lot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+Temp_bat_lot2 <- Temp_bat_consol %>% filter(Battery %in% lot4$Battery & measure == "DOD") 
+
+Temp_bat_lot2 <- Temp_bat_consol %>% filter(Battery %in% lot4$Battery & measure %in% c("Voltage","Current")) 
+
+Temp_bat_lot2 <- Temp_bat_consol %>% filter(Battery %in% lot4$Battery & measure %in% c("Current") & Variable > 0)
+
+q5 <- ggplot(data=Temp_bat_lot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+```
+
+# Bin SD > 200 and DOD < 0.8
+
+Only one battery consistently showed the trend as seen with big drop. "1985E4FF-B61E-48CE-90F3-F22C138B7420"
+There was another case where there was a large drop(only 2 values) and then regaining to higher counts consistently. "0A3909B6-9363-49B2-A244-8CD13517AD92"
+
+However one intersting thing to note is that all of them showed the cup shaped profile.
+
+# Bin SD > 200 and DOD > 0.8 & < 0.85
+
+Both batteries in this lot showed the typical trend of sharp drop followed by rise. Also from a DOD perspective most of the points were below the .85 figure. So as a proportion of points below the threshold mark, there were very few points under them.
+
+As far as the voltage profile for these goes, both showed cup profile and obviously varying current.
+
+# Bind SD > 200 and DOD > 0.85 < 0.95
+
+# Tomorrow
+
+Look closely at more cases among the above bin and also 2- 3 different samples
+
+1. Take around 100 samples from the balance 950 of the 1000 and observe some trends
+2. Take other sample of 1000 and continue the same inference
+3. Do a Bayesian inference and calculate P values to substantiate statistically the findings.
+
+# JMJPFU
+# 24-Oct-2016
+
+Taking 15% samples from balance 950 and observing the trends
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+dod_ranges <- bat_newfeat4 %>% filter(measure == "DOD" & Variable < 0.65)
+
+range(dod_ranges$Variable)
+
+lot1 <- data.frame(unique(dod_ranges$Battery))
+lot1$Battery <- as.character(lot1$Battery)
+
+# Taking balance 950 batteries from Bat_newfeat4
+
+lot2 <- data.frame(unique(bat_newfeat4$Battery))
+lot2$Battery <- as.character(lot2$Battery)
+names(lot1) <- names(lot2) <- "Battery"
+
+lot2 <- setdiff(lot2,lot1)
+
+# Taking a random sample of 20% of batteries
+set.seed(12)
+lot3 <- data.frame(sample(lot2$Battery,200,replace = FALSE))
+names(lot3) <- "Battery"
+
+# Take the data for lot3 of batteries
+# Re-using the lot1 variable name
+
+lot1 <- bat_newfeat4 %>% filter(Battery %in% lot3$Battery[101:165]) # - 101:165
+lot2 <- data.frame(unique(lot1$Battery))
+names(lot2) <- "Battery"
+
+setdiff(lot3$Battery[101:165],lot2$Battery) # A check to see if the batteries we got are what we intented to take
+
+
+
+```
+
+Let us do some binning with respect to the DOD of these batteries and the
+
+```{r}
+dod_ranges2 <- range(lot1 %>% filter(measure=="DOD") %>% select(Variable))
+
+# The DOD are ranging from 0.76 to 1.00. Let us create the following ranges
+
+# Bin1 : less than 0.8
+# Bin2 : 0.8 - 0.9
+# Bin3 : less than 1
+
+
+```
+
+# Looking at Bin 1 : 0.76 - 0.8
+
+```{r}
+
+bin1_bats <- unique(lot1 %>% filter(measure == "DOD") %>% filter(Variable < 0.8) %>% select(Battery)) # Taking all batteries less than 0.8
+
+# Starting the analysis
+
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% bin1_bats$Battery[16:20])
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the conductance slopes
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us look only at the DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure %in% c("DOD") )
+
+# Plotting some of the selected variables
+
+q5 <- ggplot(data=temp_dod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us take a look at the voltage and current alone
+
+temp_volt <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Current") ) %>% filter(Variable > 0) # Eliminating any current less than 0
+
+q5 <- ggplot(data=temp_volt,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+Observation
+
+# Bin1 : 1:4 
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Mostly cup shaped profiles
+DOD_consistency : Bat 2 & Bat4 lot of values below 0.8. Bat 1 and bat 3 : Few values below 0.8
+Conductance_profile : Bat1 - 0.91,bat2 - 0.85, & Bat3 - flat , bat4 - 0.88 Are the slopes. Bat 2 and bat 4 showing sharp profiles
+
+# Bin1 : 5:8
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : 2 & 3 batteries mostly of cup shaped profiles. 1 mixture of cup and v. 4 is mostly w profile
+DOD_consistency : Bat 1 shows more values below 0.80. Bat2,Bat3 & Bat4 most values above 0.8.
+Conductance_profile : Bat1 showing sharper drops. 0.88. Bat2 & bat3 - Flat. Bat4 - 0.91
+
+# Bin1 : 9:12
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries, mixture of cup shaped profiles and V profiles
+DOD_consistency : Bat 2,3 & 4 shows more values below 0.80  & Bat1 more values near 0.8
+Conductance_profile : Bat2 showing sharper drops. 0.88 , bat 1 - Flat , 3& 4 showing dropping profiles
+
+# Bin1 : 13:16
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries show mostly cup shaped profile. Bat 2 shows one value of volt less than 5 which corresponds to the conductance value around 750
+DOD_consistency : Bat 2 shows more values below 0.80 . Bat 4 also shows some values below 0.8 & Bat1&3 more values near 0.8
+Conductance_profile : Bat4 showing sharper drops. 0.86 , bat 1 & 2 - Flat , 3 showing dropping profiles. Bat 2 shows a one off value of conductance near around 750 which is less than half its conductance value
+
+# Bin1 : 17:20
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries, mixture of cup shaped profiles and V profiles
+DOD_consistency : Bat 3,4&1  shows more values below 0.80 . Bat 2 also shows some values below 0.8 
+Conductance_profile : Bat3 - sharpest drop - 0.81, 1&4 shows smaller drops. 3 mostly flat.
+
+# Looking at Bin 2 : less than 0.9
+
+```{r}
+
+bin2_bats <- unique(lot1 %>% filter(measure == "DOD") %>% filter(Variable < 0.90) %>% select(Battery)) # Taking all batteries between 0.8 and 0.85
+
+bin2_bats <- setdiff(bin2_bats,bin1_bats) # 22 batteries
+
+# Starting the analysis
+
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% bin2_bats$Battery[c(9,11)])
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the conductance slopes
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") ) # %>% filter(Battery %in% c("12620F76-E488-4FCD-9FC1-F20817C120FC"))
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us look only at the DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure %in% c("DOD") )
+
+# Plotting some of the selected variables
+
+q5 <- ggplot(data=temp_dod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us take a look at the voltage and current alone
+
+temp_volt <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Current") )  %>% filter(Variable > 0) # Eliminating any current less than 0
+
+q5 <- ggplot(data=temp_volt,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+Observation
+
+# Bin2 : 1:4 
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Mixture of cup shaped, constant and also some v shaped profiles.
+DOD_consistency : Most of the values of all 4 are between 0.8 and 0.85.bat 3 has almost all points between these ranges. For other batteries there are reasonable % of points above 0.85 too
+Conductance_profile : Bat3 - 0.88 sharpest drop followed by bat1 - 0.89 2 & 4 mostly flat profiles.
+
+# Bin2 : 5:8
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : 2 & 3 batteries mostly of cup shaped profiles. 1 mixture of cup and v. 4 is mostly w profile
+DOD_consistency : All batteries show similar DOD profiles. Its all between 0.85 and 0.80
+Conductance_profile : Bat3 showing sharper drops. 0.90. bat1, Bat2 & bat4 have closer drops around 0.91.
+
+# Bin2 : 9:12
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries show predominantly cup profiles. For bat 3 the number of profiles are less. No values recorded after the drop and rise
+DOD_consistency : Bat 1,2 & 4 shows more values above 0.85  & Bat3 more values near 0.8
+Conductance_profile : Bat3 showing sharper drops. 0.62 followed by a rise. All others show flatter profiles around 0.92
+
+# Bin3 : 13:16
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries show a mixture of cup shaped profile and v profile. 
+DOD_consistency : Bat 2 shows more values above 0.85 . Bat 4 also shows some values above 0.85 & Bat1&3 more values between 0.8 and 0.85 ( When we say above 0.85 it means values 0.9 , 0.95 etc)
+Conductance_profile : Bat4 showing sharper drops. 0.91 , bat 1 & 2 - Flat , 3 showing dropping profiles. 
+
+# Bin4 : 17:18
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries, mixture of cup shaped profiles and V profiles
+DOD_consistency : Bat1 former set of values near 0.85 a few latter values near 1 . Bat 2 former values near 1 and latter near 0.85 
+Conductance_profile : Bat1 - sharpest drop - 0.91, 2 shows mostly flat.
+
+
+# Tomorrow ( 25-Oct)
+
+Look at the below 12 cases who are below 1 and finish the first 50 of the selected 200.
+
+
+# Looking at Bin 3 : < 1
+
+```{r}
+
+bin3_bats <- unique(lot1 %>% filter(measure == "DOD") %>% filter(Variable < 1.0) %>% select(Battery)) # Taking all batteries less than 1
+
+bin3_bats <- setdiff(bin3_bats,bin2_bats) # 32 batteries
+
+bin3_bats <- setdiff(bin3_bats,bin1_bats) # 12 batteries
+
+# Starting the analysis
+
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% bin3_bats$Battery[16:20]) # 
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the conductance slopes
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us look only at the DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure %in% c("DOD") )
+
+# Plotting some of the selected variables
+
+q5 <- ggplot(data=temp_dod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us take a look at the voltage and current alone
+
+temp_volt <- Temp_bat_consol %>% filter(measure %in% c("Voltage") ) %>% filter(Variable > 0) # Eliminating any current less than 0 ,"Current"
+
+q5 <- ggplot(data=temp_volt,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+Observation
+
+# Bin3 : 1:4 
+
+Voltages : bat1 @ 12 volts and other @ 2 volts
+Volt_profile : Mostly constant voltage with occassional drops.
+DOD_consistency : Most of the values of all 4 are larger than 0.9 and closer to 1
+Conductance_profile : Batteries 2&3 show a muted slope and slow falling trend. Bat 1 is very variable and there is no trend.Bat 3 has very less values
+
+# Bin2 : 5:8
+
+Voltages : All of the battery voltage at 2 volts
+Volt_profile : Most of the profiles are the v profile (CDF).
+DOD_consistency : All batteries have higher DOD the lowest being around 0.88. Shows some irregular patterns
+Conductance_profile : Bat3 showing sharper drops. 0.90. bat1, Bat2 & bat4 have closer drops around 0.91.
+
+######################################################################
+
+# Sample 2 Batteries 51 : 100
+
+bin1_bats : 17 batteries
+
+Observation
+
+# Bin1 : 1:4 
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Mostly cup shaped profiles. Bat 3 shows some v profiles also after the large drop.
+DOD_consistency : Bat 1 & Bat4 show some values below 0.8. bat 3 shows the largest dod values around 0.85. One value has dropped below 0.8 might be because of one value of conductance which was very low. Bat 2 was mainly around the 0.8 mark
+Conductance_profile : bat3 shows the sharpest profile with around 0.88. All others show flat profile
+
+# Bin1 : 5:8
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Most of the voltage profiles are cup and v profiles. Bat 4 large drop is related to higher current drawn.
+DOD_consistency : bat 4 shows the most consistent drops below 0.8. Others are mostly higher values
+Conductance_profile : bat4 showing sharper drops. 0.80. Bat2 & bat3 - dropping Bat1 - flat
+
+# Bin1 : 9:12
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries, mixture of cup shaped profiles and V profiles. Bat 1 & 2 shows the highest current drawn which is relected in the sharpest drops in voltage too. However the interesting fact is why is that for batteries where conductance is showing a sharp drop there is always a period where the current is raised to higher levels and subsequent voltage drops.
+
+DOD_consistency : Bat 2,1 shows more values below 0.80 and similar profiles & Bat3 & bat4  more values near 0.8
+Conductance_profile : Bat2 showing sharper drops. 0.86 , bat 3 - Flat , 1& 4 showing dropping profiles
+
+# Bin1 : 13:17
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries show mostly cup shaped profile. bat 4 & 5 shows big drop in voltage corresponding to the higher current which is drawn. Again we have the case where the sharper drop in voltage is associated with sharp drop in conductance also
+DOD_consistency : Bat 4,2&5 shows more values below 0.80 . Bat 1 & bat3 shows more values near 0.8
+Conductance_profile : Bat4 showing sharper drops. 0.83 , bat 1 - Flat , 2,3&5 showing dropping profiles. 
+
+# Bin2_bats : 26 batteries
+
+# Bin2 : 1:5
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Mostly cup shaped profiles.
+DOD_consistency :All the DOD values are above 0.8 mark. With bat 1 and 2 showing values higher than 1
+Conductance_profile :Most of the slopes are mild. Bat3 - 0.91 sharpest drop. All the others are mostly smaller profiles.
+
+# Bin2 : 6:10
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Mostly cup shaped profiles. Ba5 shows some v profiles also. Again the battery which showed the biggest slope had an instance where the current was just raised and where the voltage also dropped.
+DOD_consistency : batteries 1:4 show similar DOD profiles and they are all above 0.80. Surprisingly battery 5 shows the highest values in DOD mostly 0.95 and above.
+Conductance_profile : Bat5 showing sharper drops. 0.88. followed by bat 3. Other batteries are more milder profiles.
+# Bin2 : 11:15
+
+Voltages : battery 1,3,4,5 voltage at 12 volts bat 2 @ 2 volt
+Volt_profile :All 12 volt batteries show predominantly cup profiles. 2 volt bat shows v profile
+DOD_consistency : Bat 3,4 & 5 shows  values near 0.80  & Bat1 higher DOD and 2 the highest
+Conductance_profile : Bat 1 shows sharp drop near 0.80 bat - 3 0.85 others milder profile
+
+# Bin2 : 16:20
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries show a mixture of cup shaped profile and v profile. 
+DOD_consistency : 1,2,4& 5 shows DOD near 0.80. Bat3 mostly higher DOD
+Conductance_profile : Bat1 showing the sharpest of the lot 0.88 , 2,4&5 shows slight drop. 3 is flat
+
+# Bin2 : 21:26
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :Mostly cup shaped profiles with some profiles with v
+DOD_consistency : 1 & 5 have more % of values near 0.80. THe others have a mixed bag with good proportion near 1 also
+Conductance_profile : Bat2 - sharpest drop - 0.91, others mostly flat.
+
+# Sample 3 Batteries 101 : 150
+
+Bin1_bats : 28 batteries
+
+# Bin1 : 1:7
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Mostly cup shaped profiles
+DOD_consistency : Bat 6 has relatively lower values below 0.8. 2,3,5 & 7 have more values below 0.8. The only difference is all other bats shows some values higher up near 1. however bat 6 have all values between 0.8 and 0.86
+Conductance_profile : Bat6 - 0.82, Other batteries shows dropping trend in the range of 0.88
+
+# Bin1 : 8:15
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Most of the batteries show a mixture of cup profile and v profile. 
+DOD_consistency : Bat 7 shows mostly values near 0.8. It dosent have many values below 0.8. 2 & 6 have most values below 0.8.
+Conductance_profile : Bat7 showing sharpest  drops. 0.57. Bat2 & bat3 - Flat. Bat4 - 0.91
+
+# Bin1 : 16:20
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries, mixture of cup shaped profiles and V profiles
+DOD_consistency : Bat 2 and 5 shows more values below 0.8. With other batteries showing between 0.8 and 0.85
+Conductance_profile : Most of the batteries show dropping profiles. However the largest drop is around 0.9. Bat 1 shows the sharpest of the lot
+
+# Bin1 : 21:24
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :Mixture of cup shaped and v profile. Bat 2 has more values which are lower depth in voltage. 
+DOD_consistency : Bat 3 shows more values below 0.80 . Bat 4 also shows some values below 0.8 & Bat1 more values near 0.8 bat 2 higher
+Conductance_profile :Bat 2 shows sharpest slope 
+
+# Bin1 : 25:28
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries, mixture of cup shaped profiles and V profiles
+DOD_consistency : 2& 3 shows more values below 0.80 . Bat 1 & 4 also shows some values between 0.8 and 0.85
+Conductance_profile : 2 & 3 shows - sharpest drop , 1&4 shows smaller drops. 3 mostly flat.
+
+Bin2_bats : 31
+
+# Bin2 : 1:5 
+
+Voltages : except 4 all of the battery voltage at 12 volts
+Volt_profile : Mixture of cup shaped and v shaped profiles.
+DOD_consistency :1,2 &3 more values near 0.8 ; 4 & 5 higher up
+Conductance_profile : Bat 5,4,1 shows sharpest profiles. Others flat
+
+# Bin2 : 6:10
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : 2,3,4,5 batteries mostly of cup shaped profiles. 1 mostly v shaped
+DOD_consistency : 2,3,4,5 shows more values near 0.8. 1 is way up
+Conductance_profile : 2,3,4,5 shows dropping profiles. 1 is very variable and has a high variance
+
+# Bin2 : 11:15
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :All batteries show predominantly cup profiles. For bat 3 the number of profiles are less. No values recorded after the drop and rise
+DOD_consistency : Bat 1,3 & 4 shows more values near 0.80  & Bat2 and bat 5 mostly way up.
+Conductance_profile : 1,3&4 mostly dropping profile. 5 is very variable. 2 also dropping but at a higher level
+
+# Bin2 : 16:20
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :However looking at voltage profiles 1& 3 shows bigger depth attained by voltage which is not reflecte in the DOD calculation. Both of them show the high current surges 
+DOD_consistency : 1 & 3 showing higher profiles and others showing values between 0.8 and 0.85. Reverse trends
+Conductance_profile : Mostly muted profiles. 1 & 3 showing sharper slopes
+
+# Bin2 : 21:25
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile :
+DOD_consistency : 2,3,4 shows lower dod with values between 0.8 and 0.85 and other way up there
+Conductance_profile : 2,3,4 - similar but dropping profiles. 1 variable and 5 dropping but at higher values
+
+# Bin2 : 26:31
+
+Voltages : All of the battery voltage at 12 volts
+Volt_profile : Mostly cup shaped. However 6 shows some values of voltage which is low
+DOD_consistency : 1,2,3,4,5 shows lower dod with values between 0.8 and 0.85. 6 we have values which are way up there
+Conductance_profile : 1,2,3 - dropping profiles. 4,5 more flatter. 6 dropping but at higher values
+
+# ######################
+
+Now that we have seen a cross section of the first 1000 batteries. We should take the second sample of 1000 and proceed with similar analysis
+
+# JMJPFU
+# 26-Oct-2016
+
+Different perspectives which we will take for the analysis
+1. Take bands of conductance drops and find behaviours
+2. Take the DOD bands and see the association
+3. Take max slopes of conductance and find the bands
+
+# Conductance drops bands
+
+Bin1 : < 20%
+Bin2 : 20% - 50%
+Bin3 : 50% - 80%
+Bin4 : 80% - 100%
+
+```{r}
+# Binnning
+
+bin1_list <- Bat_Feat1_new %>% filter(Condrop < .2) %>% select(Battery) # 2
+
+bin1_list <-  Bat_Feat1_new %>% filter(Condrop < .5 & Condrop >= .2) %>% select(Battery) # 7
+
+bin1_list <-  Bat_Feat1_new %>% filter(Condrop < .65 & Condrop >= .5) %>% select(Battery) # 4
+
+bin1_list <-  Bat_Feat1_new %>% filter(Condrop < .80 & Condrop >= .65) %>% select(Battery) # 100
+
+bin1_list <-  Bat_Feat1_new %>% filter(Condrop < .90 & Condrop >= .80) %>% select(Battery) # 492
+
+bin1_list <-  Bat_Feat1_new %>% filter(Condrop >= .90) %>% select(Battery) # 394
+
+# Sub sample 
+
+bin1_list <- data.frame(bin1_list$Battery[c(36,96,13,99,68,43,40,32,24,69,38,5, 70, 22, 11,  9 ,41, 29 ,89, 75, 37, 21, 74, 15, 55, 42, 31, 82, 34, 54)]) # 30 of .80 - .65
+
+bin1_list <- data.frame(bin1_list$Battery[c(360, 348, 118 ,201,246,319,144,267,464,273,180,49,407,58,320,263,336,456,127,132,436,155,241,219,207,285,44,253,358,231)]) # 30 of .90 - .80
+
+bin1_list <- data.frame(bin1_list$Battery[c(67,113,316,324,28,68,69,223,60,17,160,389,364,350,292,114,155,300,271,18,372,148,190,375,234,35,208,336,302,370)]) # 30 for > .9
+
+colnames(bin1_list) <- "Battery"
+
+
+bin2_data <- bin_data %>% filter(Battery %in% bin_data$Battery[c(1:2)])
+# Taking the data for the batteries and first level visualisation
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% bin_data$Battery[29]) # bin1_list$Battery[c(5,3)]
+
+batlist <- unique(Temp_bat_consol %>% select(Battery))
+
+condrops <- Bat_Feat1_new %>% filter(Battery %in% batlist$Battery) %>% select(Battery,Condrop)
+
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look only at the DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure %in% c("DOD") ) # %>% filter(Variable > 0.5)
+
+q5 <- ggplot(data=temp_dod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us take a look at the voltage and current alone
+
+temp_volt <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Current") ) %>% filter(Variable > 0) # Eliminating any current less than 0 ,"Current"
+
+q5 <- ggplot(data=temp_volt,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# 30-Oct-2016 : Looking at % of DOD
+
+bin_data <- Bat_Feat1_new %>% filter(Battery %in% bin1_list$Battery)
+
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))/bin_data$Condrop
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# select few
+
+bin2_data <- bin_data %>% filter(Battery %in% bin1_list$Battery[c(1:3)])
+
+
+
+```
+
+# Perspective of Conductance % drops
+
+# Observations 
+
+# Bin 1 < 20% - 2 batteries
+Relevance : bat1 only relevant , bat2 because of outlier
+Conductance of relevant : Dropping and retracting
+DOD Ranges : bat1 - between 0.85 and 0.8 all : Bat 2 : 0.80 - 0.85 : Some, mostly near 1
+Voltage : Confines to DOD ranges
+
+# Bin 2 : 20% - 50% - 7 batteries
+Conductance of relevant : 
+Dropping and retracting : 1,3,5
+Drop and stay : 6
+oulier : 2,4,7
+
+DOD Ranges : 
+Above 0.85 : All 4
+0.8 - 0.85 : All bat 1 & 2 ; most bat 3,bat5,7 : some bat 6
+below 0.8 - 0.75 : bat3 , some bat 5
+below 0.75 - most bat6
+Voltage : Confines to DOD ranges
+# Bin 3 : 50% - 65% - 4 batteries
+Conductance of relevant : 
+Dropping and retracting : 1,2,3,4
+Drop and stay : 
+oulier :
+DOD Ranges : 
+Above 0.85 : some 1
+0.8 - 0.85 : most bat 1,2,3,4 
+below 0.8 - 0.75 : some , 1,2,3,4
+below 0.75 - few 1
+Voltage : Confines to DOD ranges
+# Bin 4 : 65% - 80% : 100 -  30 samples taken
+
+Conductance of relevant : 
+Dropping and retracting : 5
+Drop and stay : 9,12,13,14,30
+gradual Drop : 3,4,6,16,19,20,21,23,26,
+oulier :1,2 ( Shows one off low values)
+No trend : 7,8,10,11,15,17,18,22,24,25,27,28,29
+
+DOD Ranges : 
+Above 0.85 : Most 1,2,3 : Some 4,5,19,21 : ALL : 7,8,10,11,12,13,15,17,18,20,22,24,25,27,28,29,30
+0.8 - 0.85 :some 3,5, most 4,6,9,14,19,16,21,23,16 , All : 
+below 0.8 - 0.75 : some , 5,9,14,16,23
+below 0.75 - some 5,16,21
+Voltage : 1&2 have low voltages( .67%) which are not getting reflected in the DOD. 20 showed low values,21 low values
+
+# Bin 5: 0.8 - 0.9 - 30
+Conductance of relevant : 
+Dropping and retracting : 
+Drop and stay :
+gradual Drop : 26:30,1:5,6:10,11:15,16:20,21:25,26:30
+oulier : ( Shows one off low values)
+No trend : 
+
+DOD Ranges : 
+Above 0.85 : Most:23  : Some:26:30,1,3:5,6:10,11:13,15,16,18:20,21,22,24,25,26:30  : ALL :14,17
+0.8 - 0.85 :some: most,26:30,1:5,6:10,11:13,15,16,18:20,21:25,26:30  , All : 
+below 0.8 - 0.75 : some :27:28(these have higher drops than rest),7,10(do),11,12,16,20(highest),24,25(highest),27:28(highest-both)
+below 0.75 - some 
+Voltage :  
+# Bin > 0.9 : 30
+Conductance of relevant : 
+Dropping and retracting : 
+Drop and stay :
+gradual Drop : 26:30,1:5,6:10,11:12,14:15,16:18,20,21,23,25
+oulier : ( Shows one off low values)
+No trend : 13,19,22,24
+
+DOD Ranges : 
+Above 0.85 : Most:30  : Some: 27:28,4:5,7,9,10,11,12,14,16,20,21,23,25 : ALL :29,1:2 ,8,13,18:19,22,24
+0.8 - 0.85 :some:25 most:27,28,30,3:5,7,8,9,11:12,14,16,17,20,21,23 All : 26,6,15,
+below 0.8 - 0.75 : some :23, Little : 3,5(Both lowest drp) , MOst:25(lowest)
+below 0.75 - some 
+Voltage :
+
+# JMJPFU
+# 27-Oct-2016
+# INferences from the perspective of the Conductace drop %
+
+1. Most of the batteries seen from the samples have DOD between the ranges of 0.85 and 0.80. This is same for all bins of conductance
+2. When ever the batteries are seen to have DOD less than 0.80 then the batteries are seen to have higher drops in conductance from among the samples.
+
+# Perspective II : Taking depth of Discharge bands and performing the analysis.
+
+
+First let us create a new feature for representing the min DOD attained. This will be helpful for binning the batteries
+
+```{r}
+for(i in 1:nrow(Bat_Feat1_new)){
+  
+  Bat_Feat1_new$Dodbin[i] <- min(Bat_Feat1_new[i,46:60],na.rm = TRUE)
+  
+}
+
+# Taking only those values which are not Inf
+
+Dod_bin <- Bat_Feat1_new %>% filter(Dodbin != Inf) %>% select(Battery,Dodbin)
+
+```
+
+# Bin1 : < .20
+# Bin2 : .20 - .50
+# Bin3 : .50 - .65
+# Bin4 : .65 - .75
+# Bin5 : .75 _ .8
+
+# Bin6 : > .8 - .85
+# Bin7 : > .85
+
+```{r}
+
+# Selecting the Bins
+
+dod_list <- Dod_bin %>% filter(Dodbin <= .20) %>% select(Battery) # 52 Batteries
+
+dod_list <- Dod_bin %>% filter(Dodbin > .20 & Dodbin <= .50  ) %>% select(Battery) # 1 Battery
+
+dod_list <- Dod_bin %>% filter(Dodbin > .50 & Dodbin <= .650  ) %>% select(Battery) # 3 Battery
+
+dod_list <- Dod_bin %>% filter(Dodbin > .650 & Dodbin <= .750  ) %>% select(Battery) # 14 battery
+
+dod_list <- Dod_bin %>% filter(Dodbin > .75 & Dodbin <= .80  ) %>% select(Battery) # 447 battery
+
+# Sub sample of above : 50
+
+dod_list <- data.frame(dod_list$Battery[c(209,70,284,327,333,254,280,273,85,277,347,278,19,49,119,107,433,16,8,202,335,188,156,136,243,314,428,114, 134,367,382,225,290,318,436,315,195,441,325,164,178,282,396,311,132,6,22,128,62,233)])
+
+names(dod_list) <- "Battery"
+
+dod_list <- Dod_bin %>% filter(Dodbin > .8 & Dodbin <= .85  ) %>% select(Battery) # 298 battery
+
+# Sub sample of above : 30
+
+dod_list <- data.frame(dod_list$Battery[c(226,277,14,185,186,101,169,163,261,87,102,179,46,180,8,96,113,171,290,293,286,238,260,  75,25,272,200,265,264,7)])
+
+names(dod_list) <- "Battery"
+
+dod_list <- Dod_bin %>% filter(Dodbin > .85) %>% select(Battery) # 166 battery
+
+# Sub sample of above : 20
+
+dod_list <- data.frame(dod_list$Battery[c(64,47,127,100,3,71,79,156,36,22,145,125,61,65,46,131,124,116,146,12)])
+
+names(dod_list) <- "Battery"
+
+# Analysing the batteries
+
+rg <- c(16:20)
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% dod_list$Battery[rg]) # 
+
+# Let us look only at the DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure %in% c("DOD") ) # %>% filter(Variable > 0.5)
+
+q5 <- ggplot(data=temp_dod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Finding the Conductance Drop also
+
+bin1_com <- Bat_Feat1_new %>% filter(Battery %in% dod_list$Battery[rg]) %>% select(Condrop)
+bin1_com
+
+# Let us take a look at the voltage and current alone
+
+temp_volt <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Current") ) %>% filter(Variable > 0) # Eliminating any current less than 0 ,"Current"
+
+q5 <- ggplot(data=temp_volt,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+# Bin 1 < .20
+
+There are 52 batteries and all of them have the same kind of pattern. At some point in time for a limited period all their voltages are measures at below 5. Need to look at commanalities in this profile.
+
+Some level of investigations which can be done are
+
+1. Commonalities in terms of plant, site etc
+2. Trends of conductance drops
+
+
+```{r}
+bin1_com <- Bat_Feat1_new %>% filter(Battery %in% dod_list$Battery) %>% select(Plant, Site, String)
+
+table(as.character(bin1_com$Plant))
+
+table(as.character(bin1_com$Site))
+
+table(as.character(bin1_com$String))
+```
+
+The above trends are seen accross all Plants, Sites and Strings
+
+```{r}
+
+bin1_com <- Bat_Feat1_new %>% filter(Battery %in% dod_list$Battery[1:5]) %>% select(Condrop)
+
+range(bin1_com$Condrop)
+
+nrow(bin1_com %>% filter(Condrop <= .6)) # 0
+
+nrow(bin1_com %>% filter(Condrop <= .7 & Condrop > .6 )) # 1
+
+nrow(bin1_com %>% filter(Condrop <= .8 & Condrop > .7 )) # 3
+
+nrow(bin1_com %>% filter(Condrop <= .9 & Condrop > .8 )) # 29
+
+nrow(bin1_com %>% filter(Condrop >= .9 )) # 19
+
+# Looking closely at each of these bins
+bin1_com <- Bat_Feat1_new %>% filter(Battery %in% dod_list$Battery) %>% filter(Condrop <= .7 & Condrop > .6 ) %>% select(Battery) # 1 battery 
+
+bin1_com <- Bat_Feat1_new %>% filter(Battery %in% dod_list$Battery) %>% filter(Condrop <= .8 & Condrop > .7 ) %>% select(Battery) # 3 batteries
+
+bin1_com <- Bat_Feat1_new %>% filter(Battery %in% dod_list$Battery) %>% filter(Condrop <= .9 & Condrop > .8 ) %>% select(Battery)
+
+bin1_com <- Bat_Feat1_new %>% filter(Battery %in% dod_list$Battery) %>% filter(Condrop > .9 ) %>% select(Battery)
+
+# Taking the data for the batteries and first level visualisation
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% bin1_com$Battery[16:19]) # 
+
+batlist <- unique(Temp_bat_consol %>% select(Battery))
+
+condrops <- Bat_Feat1_new %>% filter(Battery %in% batlist$Battery) %>% select(Battery,Condrop)
+
+
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look only at the DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure %in% c("DOD") ) # %>% filter(Variable > 0.5)
+
+q5 <- ggplot(data=temp_dod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Let us take a look at the voltage and current alone
+
+temp_volt <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Current") ) %>% filter(Variable > 0) # Eliminating any current less than 0 ,"Current"
+
+q5 <- ggplot(data=temp_volt,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# to look at very low values
+temp_date <- unique(Temp_bat_consol %>% filter(measure %in% c("Voltage") ) %>% filter(Variable < 5) %>% select(Date))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- temp_volt %>% filter(Date %in% temp_date$Date)
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 5)) 
+
+# Are there any commonalities in terms of Plant/Site/String
+
+comm <- Bat_Feat1_new %>% filter(Battery %in% bin1_com$Battery) %>% select(Battery,Plant, Site, String)
+
+# Commonalities 
+
+table(as.character(comm$Plant))
+
+table(as.character(comm$Site))
+
+table(as.character(comm$String))
+
+```
+
+######## Bin 1 < .20 ###################
+
+# bin1 - drop between .6 & .7 # 1 battery
+Conductance - Drop and retrace
+DOD - 2 points at .25 level
+# bin2 - drop between .7 & .8 # 3 batteries
+Conductance - gradual to some point and then sudden
+DOD - 1 points at .25 level
+voltage - Low level of 1.25 for a single day : 1: "2013-02-28" 2: "2013-09-11" 3: "2013-09-11"
+1 & 2 : Common Plant & String 3 : All different from others
+                         Battery       Plant Site String
+1 320629E5-31D4-4E27-B77C-5B6A71E7372A B5 - B8 NEG PS 6 B8 NEG
+2 34DD4C27-A3A9-4E88-8295-ACDF18C38140 B5 - B8 NEG PS 2 B8 NEG
+3 45CBC58A-60AE-4193-BCEE-A26E2600A696 A1 - A4 POS PS 4 A1 POS
+## bin3 - drop between .8 & .9 # 29 batteries
+Conductance - gradual : All
+DOD - 1 points at .25 level : All
+
+Plant : A1 - A4 POS A5 - A8 NEG B1 - B4 POS B5 - B8 NEG 
+          6           7           6          10 
+Site : PS 1 PS 2 PS 3 PS 4 PS 5 PS 6 PS 7 PS 8 PS 9 
+        3    1    9    1    3    4    3    1    4  
+String : A1 POS A2 POS A3 POS A4 POS A5 NEG A6 NEG A7 NEG B1 POS B3 POS B4 POS B5 NEG B6 NEG B7 NEG B8 NEG 
+            2      1      2      1      2      4      1      1      1      4      1      3      1      5
+
+Months 9,3,11 : 1:29
+        1,2
+# bin - drop > .9 # 19 batteries   
+Conductance - gradual : All
+DOD - 1 points at .25 level : All
+Plant : A1 - A4 POS A5 - A8 NEG B1 - B4 POS B5 - B8 NEG 
+          3           2           9           5 
+Site : PS 1 PS 2 PS 3 PS 4 PS 5 PS 6 PS 7 PS 8 PS 9 
+        3    2    1    2    1    3    1    3    3 
+String : A1 POS A4 POS A5 NEG A6 NEG B2 POS B3 POS B4 POS B5 NEG B7 NEG 
+          2      1      1      1      3      3      3      1      4 
+
+Months 9,3 : 1:19
+        1,2,5,11,10
+        
+
+####################### Second Bin #####################        
+        
+# DOD .2 - .5 - 1 battery
+Conductance 
+gradual :
+Drop & Retract : 1
+
+Condrop
+Below . 35 : 1
+
+DOD 
+At .25 level :
+At . 5 level : Most : 1
+
+# DOD : .5 - .65 : 3 Batteries
+Conductance 
+gradual :
+Drop & Retract : 3
+
+Condrop : .76 and .70 : 1,2,3
+
+
+DOD 
+At .25 level :
+At . 5 level : Most : 
+At .6 level : Some : 1,2,3
+Below .8 level : Some : 1,2,3
+Between .8 - .85 : Most : 1,2,3
+Above .85 _ little : 1,2,3
+
+# DOD : .65 - .75 : 14 Batteries
+Conductance 
+gradual :
+Drop & Retract : 2,
+Drop & Small retract : 6
+Low - Rise - Gradual drop : 1,3,4:5,7:9,10:12,13;14
+Condrop : 
+.76 and .70 : 2,6,9
+.8 - .85 : 3,5
+ > .85 : 1,4,7,8,10:12,13;14
+DOD 
+At .25 level :
+At . 5 level : Most : 
+At .6 level : Some :
+Below .75 : Oneoff :1,2,3,4:6,7:9,10:12,13:14 Some :  Most : All : 
+Between .8 - .75 level : Some : 2,6
+Between .8 - .85 : Oneoff: 1,3,9,12,13:14 Most : 2,6
+Above .85 _ little : 2,6 , Most : 1,3,4:5,7:9,10:12,13:14
+
+# DOD : .75 - .80 : 477 Batteries,Sample : 50
+Conductance 
+gradual :1:5,10,11:12,14:15,16:20,26:30,36:40,41:45,47:50
+Drop & Retract : 6,7,9
+Drop & Small retract :
+Drop & Stay : 46,
+Low - Rise - Gradual drop :8,13
+Condrop : 
+.2 - .3 : 6
+.8 and .70 : 8,27,30,44,46
+.8 - .85 : 9,11,20,29,36:37
+> .85 : 1:5,7,10,12:15,16:19,21:25,26,28,31:35,38:40,41:43,45,47:50
+DOD 
+At .25 level :
+At . 5 level : Most : 
+At .6 level : Some :
+Below .75 : Oneoff : Some :  Most : All : 
+Between .8 - .75  :Lot : 46, Some : 1,2,4,5,16:18,21,23,24,26:28,32,34,36:37,43,45,47,49,50 Little : 3,6,7,9,10,11:12,14:15,19:20,22,29:30,31,33,35,38:40,41:42,44 Oneoff: 8,13,25
+Between .8 - .85 : Oneoff:8,13  Most :1:5,6:7,9:10,11:12,14:15,16:18,21:25,26:30,31:35,36:40,43:45,46,49,50 Some:41:42 All:48
+Above .85 _ little :1,2,4,5,10,11;12,14:15,16:18,26:30,36:39,46,49,50  Most : 8,13,19;20,41:42,47
+
+# DOD : .85 - .80 : 298 Batteries,Sample : 30
+
+Conductance 
+gradual :1:5,6;9,11:15,16:20,21:25
+Drop & Retract :
+Drop & Small retract :
+Drop & Stay : 10
+Low - Rise - Gradual drop :
+Condrop : 
+.2 - .3 : 
+.8 and .70 : 10
+.8 - .85 :7,20,23,24
+> .85 : 1:5,6,8,9,11:15,16:19,21,22,25
+
+DOD 
+At .25 level :
+At . 5 level : Most : 
+At .6 level : Some :
+Below .75 : Oneoff : Some :  Most : All : 
+Between .8 - .75  :Lot :  Some :  Little : Oneoff: 
+Between .8 - .85 : Oneoff:  Most :1,3:5,6:7,13;15,19:20,22:25,26,27,29 Some:10,28,30  All: 2,8,9,11,12,16;18,21
+Above .85 _ little :1,3,4,5,6:7,19:20, 25 Some :13;15,22:25,27 Most :10,28,30
+
+# Oct-30-2016 : New Perspective
+
+Arranging the data as per the % less than 50%
+
+```{r}
+
+bin_data <- Bat_Feat1_new %>% arrange(desc(Dod80))
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))/bin_data$Condrop
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# Doing visualisation of the Conductance
+
+
+# Taking the data for the batteries and first level visualisation
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% bin_data$Battery[505:510]) # 
+
+batlist <- unique(Temp_bat_consol %>% select(Battery))
+
+condrops <- Bat_Feat1_new %>% filter(Battery %in% batlist$Battery) %>% select(Battery,Condrop)
+
+
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+# JMJPFU
+# 2 Nov 2016
+
+Tomorrow start from line 1057. Values with drop > 0.9
+
+# JMJPFU
+# 3 Nov 2016
+
+Let us do some binning for the first list of 999 batteries like we did for the second lot
+
+```{r}
+
+list999_data <- Bat_Feat_new %>% filter(Condrop < 0.8 & Dod80 >= 10)
+
+# Making the composite data
+
+bin_data <- Bat_Feat_new %>% filter(Battery %in% list999_data$Battery)
+
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))/bin_data$Condrop
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# Taking the relevant data and doing visualisation
+
+
+# Taking the data for the batteries and first level visualisation
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% bin_data$Battery[15:21]) # bin1_list$Battery[c(5,3)]
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look only at the DOD
+
+temp_dod <- Temp_bat_consol %>% filter(measure %in% c("DOD") ) # %>% filter(Variable > 0.5)
+
+q5 <- ggplot(data=temp_dod,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+
+
+
+```
+
+Making new bins after adding the % of points below the maximum level of Conductance also
+
+```{r}
+
+list999_data <- Bat_Feat_new %>% filter(Condrop < 0.8 & Dod80 >= 10)
+
+# Making the composite data
+
+bin_data <- Bat_Feat_new %>% filter(Battery %in% list999_data$Battery)
+
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))/bin_data$Condrop
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# Let us also arrange with respect to descending Cond80 data
+
+bin_data <- bin_data %>% arrange(desc(con80))
+
+```
+
+Let us do for the 1000 batteries also the same binning after adding the conductance drop %
+
+```{r}
+
+list1000_data <- Bat_Feat1_new %>% filter(Condrop < 0.8 & Dod80 >= 10)
+
+# Making the composite data
+
+bin_data <- Bat_Feat1_new %>% filter(Battery %in% list1000_data$Battery)
+
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))/bin_data$Condrop
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# Let us also arrange with respect to descending Cond80 data
+
+bin_data <- bin_data %>% arrange(desc(con80))
+
+```
+
+Let us try altering the formulae of the compo a bit
+
+```{r}
+# maintaining a same rank for comparison
+
+bin_data$rank1 <- 1:29
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))*bin_data$con80
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# Let us check the bins after this sorting
+
+bin_data$rank2 <- 1:29
+
+# Let us also arrange with respect to descending Cond80 data
+
+bin_data <- bin_data %>% arrange(desc(con80))
+
+
+
+```
+
+For 999 list
+
+```{r}
+
+list999_data <- Bat_Feat_new %>% filter(Condrop < 0.8 & Dod80 >= 10 & con50 < 30) # Removing all ouliers also
+
+# Making the composite data
+
+bin_data <- Bat_Feat_new %>% filter(Battery %in% list999_data$Battery)
+
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))* ((3*bin_data$con80) + (5*bin_data$con50))
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# Let us also arrange with respect to descending Cond80 data
+
+bin_data <- bin_data %>% arrange(desc(con80))
+
+```
+
+So the new formule with removing and con50 > 30 and the multipliying with a mixture of scores 
+
+# JMJPFU
+# 4-Nov-2016
+
+```{r}
+list1000_data <- Bat_Feat1_new %>% filter(Condrop < 0.8 & Dod80 >= 10 & con50 < 30) # Removing all ouliers also
+
+# Making the composite data
+
+bin_data <- Bat_Feat1_new %>% filter(Battery %in% list1000_data$Battery) # Data for 29 batteries
+
+
+bin_data$compo <- ((bin_data$Dod50 * 5) + (bin_data$Dod80 * 3))* ((3*bin_data$con80) + (5*bin_data$con50))
+
+bin_data <- bin_data %>% arrange(desc(compo))
+
+# Let us look at some samples which are outside the 29 batteries listed
+
+list2_1000 <- Bat_Feat_new %>% select(Battery)
+
+list3_1000 <- list999_data %>% select(Battery)
+
+list2_1000 <- setdiff(list2_1000,list3_1000)
+
+# Sampling 21
+
+samp1 <- c(304,139,662,102,285,321,159, 507,24,879,725,857,949,575, 439 ,271,636,333,167,130 ,80)
+
+list2_1000 <- list2_1000$Battery[samp1] # List of 21 batteries
+
+# Looking at conductance values
+
+Temp_bat_consol <- bat_newfeat4 %>% filter(Battery %in% list2_1000[8:14]) # 
+
+# Looking at Conductance
+
+Temp_conductance <- Temp_bat_consol %>% filter(measure %in% c("Conductance") )
+
+q5 <- ggplot(data=Temp_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph #measure~
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+
+
+
+```
+

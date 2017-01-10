@@ -1,0 +1,588 @@
+---
+title: "JMJPFU_Demo_Celltraq2"
+author: "Quadrant-4"
+date: "October 12, 2016"
+output: html_document
+------
+
+Now that we have a new sample data frame, let us observe those cases closely and try to unearth any trends 
+
+
+
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+
+
+```
+
+# Trend 1 : Cup like shapes of discharge profiles
+
+```{r}
+"2F83C61C-2D65-45B2-ABF4-B48409BB5EA5"
+
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "0124308E-E6E8-4AE7-ABBE-E56561FE8CC0")
+
+
+# Plotting 
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Plotting with the other data frame
+
+Temp_bat_consol <- bat_newfeat2 %>% filter(Battery == "0124308E-E6E8-4AE7-ABBE-E56561FE8CC0")
+
+
+# Plotting 
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1)) +theme(axis.text.x = element_text(size = .5)) 
+
+
+# Hierarchy II - Digging deeper
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2015-01-14")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 5)) 
+
+# Focusing on specific times 2014-01-16 14:33:21
+
+Temp_bat_spot1 <- Temp_bat_consol %>% filter(Date1 > "2015-01-14 08:01:04 IST" & Date1 < "2015-01-14 08:03:04 IST") # 
+
+q6 <- ggplot(data=Temp_bat_spot1,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q6 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+We need to get the acceptable slope for a minute of discharge to do some valid comparisons of the discharge profiles.
+
+
+# Trend I : Constant conductance and then conductance regaining original level
+
+
+```{r}
+"2F83C61C-2D65-45B2-ABF4-B48409BB5EA5"
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "2F83C61C-2D65-45B2-ABF4-B48409BB5EA5")
+
+
+# Plotting 
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+The DOD does not go down the 80% mark. THe slope of discharge profile in the initial phases show some large slopes.
+
+# Type II Trend - Falling discharge voltage
+
+```{r}
+"21CACF45-93A9-40BC-9298-3987DD1881F8"
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "21CACF45-93A9-40BC-9298-3987DD1881F8")
+
+# Plotting all variables together
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Taking a closer look at the "W" profile
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-01-10")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+
+
+```
+
+This "W" profile is a combination of two "spoon" like discharge profiles taken within intervals of 1 minute gap. Each of the readings are taken at 30 seconds interval each. Need to know the acceptable discharge profile at 30 seconds interval.
+
+
+
+These "W" profile dosent show any big drop in DOD nor does it show any big discharge slopes. Unlikely candidates for failing batteries.
+
+```{r}
+
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "58CC8861-5D3C-4987-9DFF-F27042E5C1DF")
+
+# Plotting all variables together
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Taking a closer look at the profile
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2014-03-26")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+
+```
+
+In the above plot we need to look at the discharge profile overa a period of time. The initial dip and then rise in discharge is an expected phenomenon. What is required is the discharge voltage for a 1 minute at a current of 20.75 Amps to check if this is of expected profile.
+
+We need to know the expected discharge voltage per cell for a minute at a rate of 20.75 constant Amps to compare and tell if the discharge profile is as per expected lines or not
+
+# Trend  III - Rising discharge voltage
+
+This is of type III where the characteristic is or of many cyclic frequencies followed by a large rise in voltage. The rise in voltage dosent correspond to drop in current. The drop in voltage is also associated with the drop in conductance. However another charachteristic of this trend is the depth of discharge level is never breached.
+
+```{r}
+"2E108B85-4D21-4A29-8947-0A9CE5033354"
+
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "2E108B85-4D21-4A29-8947-0A9CE5033354")
+
+# Plotting all variables together
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Taking a closer look at the profile
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2015-03-13")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+
+```
+
+2012-09-24 . This again shows the similar "W" Profile as the earlier readings. 
+
+The last date reading "2015-03-13" shows an escalator kind of profile.
+
+
+# Normal batteries with conductance between 150 and 200
+
+```{r}
+"3BA11CF9-EACA-4AA8-A77F-4DF23B29AAAB"
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery == "3BA11CF9-EACA-4AA8-A77F-4DF23B29AAAB")
+
+# Plotting all variables together
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Taking a closer look at the profile
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-05-10")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Taking specific time periods
+
+Temp_bat_spot1 <- Temp_bat_consol %>% filter(Date1 > "2013-05-10 15:04:15 IST" & Date1 < "2013-05-10 15:05:15 IST") # 
+
+q6 <- ggplot(data=Temp_bat_spot1,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q6 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+
+```
+
+The above profile shows a typical discharge profile for a continuous period of time. The DOD and the discharge slopes are pretty small indicating better batteries
+
+
+
+Now let us look at the case where the depth of discharge has reached a level below 50%.
+
+```{r}
+
+dod_ranges <- bat_newfeat3 %>% filter(measure == "DOD") %>% filter(Variable < 0.5)
+
+range(dod_ranges$Variable)
+
+unique(dod_ranges$Battery)
+
+"4EEC290B-9889-415C-8AA9-809010AC689E" "61B004A6-5374-4189-9826-639ACBF34BDF" "A93291D4-E5FA-4349-BDDF-1FB1944CF32E"
+
+```
+
+The above are the three batteries which has shown DOD less than 50%. Let us look at them closely
+
+```{r}
+
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("4EEC290B-9889-415C-8AA9-809010AC689E", "61B004A6-5374-4189-9826-639ACBF34BDF","A93291D4-E5FA-4349-BDDF-1FB1944CF32E" ))
+
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look only at the Discharge slopes
+
+Temp_dislope <- Temp_bat_consol %>% filter(measure %in% c("Voltage","Discharge","DOD") )
+
+# Plotting some of the selected variables
+
+q5 <- ggplot(data=Temp_dislope,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+So from the above graphs for the discharge slope, there are only very pointed instances for all three batteries where we see these high slopes. The slopes regains its normal self after the period where it shows high slopes. In addition the DOD for the first two batteries remain in the sub 50 level for some time consistently. So it needs to be ascetained whether this is a potential case of failing batteries. However for the subsequent cycles it has regained some of the lost ground.
+
+
+Let us now look closely at the first battery and the first period
+
+```{r}
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("4EEC290B-9889-415C-8AA9-809010AC689E"))
+
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the time frame when this sharp increase in 
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-03-04")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+
+
+```
+
+So looking at the time frame, we can see that the DOD has fallen to around 50%. The discharge slope shows a big slope. The conductance has fallen to a low level too. It can be seen that the discharge voltage remains at the low level for the period of 3 minutes at a rising current drawn. 
+
+Does this show a failing battery source ??
+How does a 3 minute discharge profile at the current drawn fare with respect to the accepted limit ?
+
+
+
+After a point of time the voltage increases with increasing current. Does this period indicate that the load was connected to the power source and the battery is in a state of charging.
+
+# Second Battery
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("61B004A6-5374-4189-9826-639ACBF34BDF"))
+
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the time frame when this sharp increase in 
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-03-01")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Date 2 : 2013-09-11
+
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-09-11")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Date 3 2013-09-12
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-09-12")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+```
+
+This profile looks similar to the previous battery. The depth of discharge is attained below the 50% level and is remaining at that level for considerable period of time. The following needs to be compared
+
+1. Need to compare the 3 minute discharge profile with the manufacturer supplied technical specs
+
+For the second date, there is a constant degradation in the DOD over the 3 minute period. After some time there is rise in voltage too which could indicate completion of discharge.
+
+For Third date, the voltage continues to go down for the 3 minute discharge profile. 
+
+# Third battery
+
+"A93291D4-E5FA-4349-BDDF-1FB1944CF32E"
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("A93291D4-E5FA-4349-BDDF-1FB1944CF32E"))
+
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the time frame when this sharp increase in 
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-02-28")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Date 2 : 2013-04-06
+
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-04-06")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Date 3 2013-09-10
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-09-10")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+
+```
+
+# Date 1 2013-02-28
+There is a constant degradation in discharge voltage and it remains at the low level of voltage for the 3 minute period. 
+
+# Date 2 : 2013-04-06
+This is a period of constant discharge voltage and that too at the acceptable level.
+
+# Date 3 2013-09-10
+In the last date profile, there is a lower level of discharge voltage which is sustained. Then it rises.
+
+
+# Let us now look at cases, where the DOD is between 0.8 and 0.5
+
+```{r}
+
+dod_ranges <- bat_newfeat3 %>% filter(measure == "DOD") %>% filter(Variable < 0.7 & Variable > 0.55)
+
+range(dod_ranges$Variable)
+
+unique(dod_ranges$Battery)
+
+"98710F7E-31A2-4C16-9086-8A80EECFC35B"
+
+```
+
+Let us now look at this case
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("98710F7E-31A2-4C16-9086-8A80EECFC35B"))
+
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+# Let us look at the time frame when this sharp increase in 
+
+unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Focusing on a specific date
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-02-28")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Date 2 : 2013-09-10
+
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-09-10")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+# Date 3 2013-11-30
+
+Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == "2013-11-30")
+
+q7 <- ggplot(data=Temp_bat_spot2,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+q7 + theme(axis.text.x=element_text(angle=70,hjust=1))+theme(axis.text.x = element_text(size = 10)) 
+
+
+```
+
+# Date 1 : 2013-02-28
+
+At this date, for the 2.5 minute discharge profile, there is a suddent drop in discharge voltage to a very low level. Then the voltage remains in that position for some time. At the end of time the voltage again rises. Is the rise because of being connected to the supply ?
+
+Also need to compare the manufacturer prescribed discharge profile with that of the one seen here for 3 minute time frame. 
+
+# Date 2 : 2013-09-10
+
+Again a profile similar to the above for 2.5 minutes
+
+# Date 3 : 2013-11-30
+
+The third profile shows a profile of a healthy battery.
+
+One interesting fact which was seen in this battery was that when the discharge voltage was falling for the first two dates the conductance also fell. The third date was probably when the battery was replaced. Let us verify closely the conductance profile of this battery
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("4EEC290B-9889-415C-8AA9-809010AC689E", "61B004A6-5374-4189-9826-639ACBF34BDF","A93291D4-E5FA-4349-BDDF-1FB1944CF32E","98710F7E-31A2-4C16-9086-8A80EECFC35B" )) %>% filter(measure == "Conductance")
+
+Temp_bat_conductance  <- Temp_bat_consol %>% filter(measure == "Conductance")
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(Battery~measure,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+```
+
+So as seen a common trend in all these batteries is a fall in conductance and then a rise in the conductance to the original level.
+
+Are there any other commonalities for these batteries with respect to plant name or string name etc ?
+
+```{r}
+
+bat_string <- Temp_bat_consol %>% select(Battery,String,Plant,Site)
+
+unique(bat_string)
+
+
+```
+
+ Battery String       Plant Site
+1   4EEC290B-9889-415C-8AA9-809010AC689E A6 NEG A5 - A8 NEG PS 9
+140 61B004A6-5374-4189-9826-639ACBF34BDF B6 NEG B5 - B8 NEG PS 5
+279 98710F7E-31A2-4C16-9086-8A80EECFC35B A2 POS A1 - A4 POS PS 7
+428 A93291D4-E5FA-4349-BDDF-1FB1944CF32E A6 NEG A5 - A8 NEG PS 7
+
+
+So there are some commonalities in terms of Strings and Sites and Plants
+
+```{r}
+
+dod_ranges <- bat_newfeat3 %>% filter(measure == "DOD") %>% filter(Variable < 0.95 & Variable > 0.9)
+
+range(dod_ranges$Variable)
+
+bats_falling <- unique(dod_ranges$Battery)
+
+# Let us look at the conductance of select few of them
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("78D9B67A-3DB2-4018-BC21-01DDFE6DFC31","889DC298-B847-4926-BBA6-4641C0E27D1A","8A1A7209-845B-41CF-A7F9-5C1810E4D28F","8E477F7E-C70E-4A1B-8F20-CB31C101ECF6")) %>% filter(measure == "Conductance")
+
+Temp_bat_conductance  <- Temp_bat_consol %>% filter(measure %in% c("Conductance"))
+
+# Plotting at the highest level
+
+q5 <- ggplot(data=Temp_bat_conductance,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+# Plotting everything
+
+
+Temp_bat_consol <- bat_newfeat3 %>% filter(Battery %in% c("8A1A7209-845B-41CF-A7F9-5C1810E4D28F"))
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~.,scales = "free") + geom_smooth(method="lm") # ,margins =TRUE can be included if we want everything together in one graph
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+"58CC8861-5D3C-4987-9DFF-F27042E5C1DF"
+
+All three batches of batteries showed a trend of falling conductance and then regaining the original level. This could be an indicator to failing batteries.
+
+So a profile of falling conductance and then regaining the original level combined with DOD less than 80% could mean a recipe for a failing battery.
+
+# Tomorrow
+
+1. Identify all those batches of batteries who have DOD less than 80% and classify them as Failing batteries.
+2. Extract features for Conductance, in terms of slopes of conductance over time.
+3. Extract features for temperature as to max temperature attained over time
+4. Get all the feature and get the data set as one single record for a battery and then do some clustering to see how the batteries cluster together.
+5. For final modelling each battery should have 4-5 records pertaining to the periods i.e ( 1 month before failure, 2 month before failuer etc.). Need to evaluate what works best
+6. Try some initial modelling 
+
+# 18-Oct-2016
+Trying with the new file
+
+```{r}
+
+dod_ranges <- bat_newfeat4 %>% filter(measure == "DOD") %>% filter(Variable < 0.5)
+
+range(dod_ranges$Variable)
+
+bat_below50 <- unique(dod_ranges$Battery)
+
+
+
+# Let us plot the distribution
+
+
+
+```
+

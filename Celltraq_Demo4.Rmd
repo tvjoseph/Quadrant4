@@ -659,7 +659,14 @@ We will start the modelling part today. In this file, we will list the process a
 
 
 ```{r}
+library(ggplot2)
 
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% failPredBats$Battery[1]) %>% filter(measure %in% c("Conductance","DOD","Voltage")) %>% filter(Date <= "2015-05-02") # Taking the requuired data # ,"DOD","Voltage"
+
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
 
 
 ```
