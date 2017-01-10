@@ -479,4 +479,153 @@ Similar metric for negative class.
 
 In the next pass we will try the prediction exercise using SVM and observe the results
 
+# Tomorrow
+
+1. Need to try prediction method with SVM as per the method in the caret website
+
+# JMJPFU
+### 10-Jan-2017
+
+Let us first try the SVM with the native e1071 library and check how it performs. After which we will use it in conjunction with the caret package
+
+```{r}
+library(e1071)
+```
+
+Doing the training with the parameters defined earlier. Let us first do the training with a radial kernel with the earlier defined sigma and cost parameters
+
+## SVM - Model 1 : Radial Kernel, C = 3 , Gamma = 0.025
+
+```{r}
+
+svmRadfit <- svm(label~.,data=batDataset[,5:16],kernel="radial",cost=3,gamma=0.025)
+
+summary(svmRadfit)
+
+table(svmRadfit$fitted,batDataset$label)
+
+```
+
+Looking at the fitted data, it can be seen that at least with the training data the SVM model looks much better than the KNN model earlier tried out. However the proof of the pudding will be when this is tried out on the validation data set.
+
+Let us now do the prediction with the validation set
+
+```{r}
+
+validationSet$predict_SVM <- predict(svmRadfit,newdata = validationSet[,5:15])
+
+table(validationSet$predict_SVM,validationSet$label)
+
+```
+For the validation set also, the other variables fared better than the KNN. One reason the other classes fared better is because of the reason that the other variables data is a copy paste from the training set. So it is bound to work well.
+
+We will try the same with the testing dataset which we created earlier. 
+
+### Creating the data set
+
+```{r}
+
+batTestSet <- normalCon %>% filter(label == "To_test")
+
+batTestSet <- batTestSet %>% select(Battery,Counter,Bench1,Bench2,featDischarge,conSlope,dodMin,Dod50,Dod85,Dodtop,conDrop,con50,con80,contop,voltSD)
+
+```
+
+Predicting the model on the new test set
+
+```{r}
+
+batTestSet$predicSVMRad <- predict(svmRadfit,newdata = batTestSet[,5:15])
+
+table(batTestSet$predicSVMRad)
+
+```
+
+Now that some prediction has been made, let us look at the batteries where the failure prediction was made and check its variables through visualisation
+
+```{r}
+failPredBats <- batTestSet %>% filter(predicSVMRad == "3_Period_before_Failure") %>% select(Battery)
+
+failPredBatdat <- batTestSet %>% filter(Battery == failPredBats$Battery)
+
+failPredBatdat2 <- batDataset %>% filter(Battery == failPredBats$Battery)
+
+# Second data also
+
+failPredBats1 <- batTestSet %>% filter(predicSVMRad == "4_Period_before_Failure") %>% select(Battery)
+
+failPredBatdat3 <- batTestSet %>% filter(Battery == failPredBats1$Battery[2])
+
+failPredBatdat4 <- batDataset %>% filter(Battery == failPredBats1$Battery[1])
+
+# Let us take both batteries and then go for visualisation
+
+failPredBats <- unique(rbind(failPredBats,failPredBats1))
+
+```
+
+Let us do some visualisation for these sets of batteries
+
+```{r}
+library(ggplot2)
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% failPredBats$Battery) %>% filter(measure %in% c("Conductance","DOD","Voltage")) # Taking the requuired data # ,"DOD","Voltage"
+
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+The visualisation indicated some problematic batteries. Let us also look at the periods when the prediction was done and visualise data before that period.
+
+```{r}
+
+failPredBats <- batTestSet %>% filter(predicSVMRad == "3_Period_before_Failure") %>% select(Battery,Bench1,Bench2)
+
+failPredBatdat <- batTestSet %>% filter(Battery == failPredBats$Battery)
+
+failPredBatdat2 <- batDataset %>% filter(Battery == failPredBats$Battery)
+
+# Second data also
+
+failPredBats1 <- batTestSet %>% filter(predicSVMRad == "4_Period_before_Failure") %>% select(Battery,Bench1,Bench2)
+
+failPredBatdat3 <- batTestSet %>% filter(Battery == failPredBats1$Battery[2])
+
+failPredBatdat4 <- batDataset %>% filter(Battery == failPredBats1$Battery[1])
+
+# Let us take both batteries and then go for visualisation
+
+failPredBats <- unique(rbind(failPredBats,failPredBats1))
+
+
+```
+
+Visualising the data 
+
+```{r}
+library(ggplot2)
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% failPredBats$Battery[1]) %>% filter(measure %in% c("Conductance","DOD","Voltage")) %>% filter(Date <= "2015-05-02") # Taking the requuired data # ,"DOD","Voltage"
+
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+```
+
+
+So taking a look at the periods in which the batteries were showing some weakness, the prediction has been correct so far.
+
+### Thank you My Lord
+
+# Tomorrow . Have to try the following
+1. Try ROC curves as per ROCR package : ISLR page 365
+2. TRY SVM with the following kernels : Polynomial, linear. For polynomial we also have to specify the degree of the polynomial.
+3. TRY SVM with scaling ( Scale = TRUE)
+4. Try SVM with the tuning method # ISLR page 361
+5. Try out various options in Caret package
 
