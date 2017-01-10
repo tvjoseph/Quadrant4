@@ -1,0 +1,689 @@
+---
+title: "Cleaning_Experimenting"
+author: "Quadrant-4 Team"
+date: "23 August 2016"
+output: html_document
+---
+
+## JMJPFU
+
+This file is to try cleaning the Celltraq file
+
+### Merging the various files
+The first task we will do is to try merging all the files. Before merging we need to understand the number of uniqe IDs which are there and the commonalities accross all the files.
+
+
+Experiment 1 : 
+
+In this experiment we only take the Unique IDs and then append a new column to it naming it which file it comes from
+
+
+```{r}
+library(dplyr)
+
+unique1 <- Vod_bat_discharge %>% select(Unique_ID,Plant_Name,Battery_no,Measurement_Timestamp,Voltage,Current)
+temp1 <- unique(unique1$Unique_ID)
+unique1$file1 <- "Bat_discharge"
+
+unique2 <- Vodafone.Battery.Conductance %>% select(Unique_ID,Plant_Name,Battery_no,Measurement_Timestamp,Conductance)
+
+temp2 <- unique(unique2$Unique_ID)
+unique2$file2 <- "Bat_vt"
+
+
+unique3 <- Vod_bat_vt %>% select(Unique_ID,Plant_Name,Battery_no,Measurement_Timestamp,Voltage,Temperature)
+temp2 <- unique(unique2$Unique_ID)
+unique2$file2 <- "Bat_vt"
+
+unique4 <- Vod_string_discharge %>% select(Unique_ID,Plant_Name,Measurement_Timestamp,Voltage,Current,Manufacturer,Model,Battery_Type)
+
+unique5 <- Vod_string_measurement %>% select(Unique_ID,Plant_Name,Measurement_Timestamp,Voltage,Temperature,Current,Ripple_current,Manufacturer,Model,Battery_Type)
+
+```
+
+Let us leave the above for now and then try merging two data sets with three variables Uniqe ID, Plant and date
+
+```{r}
+
+Mrg_1 <- merge(unique1,unique2,by=c("Unique_ID","Measurement_Timestamp","Plant_Name"),all=TRUE)
+
+colnames(Mrg_1)[4:8] <- c("Battery_discharge","Volt_discharge","Curr_discharge","Battery_cond","Conductance")
+
+Mrg_2 <- merge(Mrg_1,unique3,by=c("Unique_ID","Measurement_Timestamp","Plant_Name"),all=TRUE)
+
+```
+
+Let me do some testing if there are rows with merging of values
+
+```{r}
+
+temp1 <- Mrg_2 %>% filter(Battery_discharge == "Battery 18"|Battery_cond=="Battery 18"|Battery_no=="Battery 18")
+
+```
+There are instances where the same battery is used for various purposes.
+
+Lets continue
+
+```{r}
+
+names(Mrg_2)
+
+colnames(Mrg_2)[9:11] <- c("Battery_vt","Volt_vt","Temp_vt")
+
+Mrg_3 <- merge(Mrg_2,unique4,by=c("Unique_ID","Measurement_Timestamp","Plant_Name"),all=TRUE)
+
+names(Mrg_3)
+
+colnames(Mrg_3)[12:16] <- c("Volt_stdis","curr_stdis","Manufacturer_stdis","Model_stdis","Battype_stdis")
+
+Mrg_4 <- merge(Mrg_3,unique5,by=c("Unique_ID","Measurement_Timestamp","Plant_Name"),all=TRUE)
+```
+
+Now that all the merging is done, let us now get a consolidated data set
+
+```{r}
+
+Vod_consol <- Mrg_4 %>% select(Unique_ID,Measurement_Timestamp,Plant_Name)
+
+# Now to get the Battery No for all the cases
+
+Vod_consol$Battery_no <- NA
+
+
+for(i in 101:nrow(Vod_consol)){
+  
+  if(!is.na(Mrg_4[i,4])){Vod_consol[i,4] <-paste(Mrg_4[i,4]) }
+     else{
+       
+       if(!is.na(Mrg_4[i,7])){Vod_consol[i,4] <-paste(Mrg_4[i,7]) }
+       else{
+         
+         if(!is.na(Mrg_4[i,9])){Vod_consol[i,4] <-paste(Mrg_4[i,9]) }
+       } # End of second inner loop
+       
+       
+     } # End of first Else condition
+  
+  print(i)
+} # End of For loop
+
+
+```
+
+The loop above is taking for ever. We will go loop by loop and see if this is fast
+
+```{r}
+
+for(i in 111401:nrow(Vod_consol)){
+  
+  if(!is.na(Mrg_4[i,4])){Vod_consol[i,4] <-paste(Mrg_4[i,4]) }
+     
+} # End of For loop
+
+
+```
+
+JMJPFU
+6 Sept 2016
+
+As a new approach, let us take small subsets of the data and then do the above loop to merge the files
+
+Let us take the first test case
+
+```{r}
+
+New_mrg <- rbind(New_mrg,mrg_41)
+
+mrg_41 <- subset(Vod_consol[5000001:5492750,])
+Mrg_4_sub <- subset(Mrg_4[5000001:5492750,])
+cou <- 1
+
+# Starting the for loop
+
+for(i in 1:nrow(mrg_41)){
+  
+  if(!is.na(Mrg_4_sub[i,4])){mrg_41[i,4] <-paste(Mrg_4_sub[i,4]) }
+     else{
+       
+       if(!is.na(Mrg_4_sub[i,7])){mrg_41[i,4] <-paste(Mrg_4_sub[i,7]) }
+       else{
+         
+         if(!is.na(Mrg_4_sub[i,9])){mrg_41[i,4] <-paste(Mrg_4_sub[i,9]) }
+       } # End of second inner loop
+       
+       
+     } # End of first Else condition
+  
+  print(i)
+  
+  
+} # End of For loop
+
+```
+
+Let us take a dip stick evaluation
+
+```{r}
+
+library(dplyr)
+
+Mrg_4 %>% filter(Unique_ID=="1535BB08-293C-42A7-BEAA-254A7F74819C"&Measurement_Timestamp=="2014-07-26 00:04:06.000") %>% select(Battery_discharge,Battery_cond,Battery_vt)
+
+
+mrg_41 %>% filter(Unique_ID=="0FCBDC81-D4AB-4BF2-87F9-888071A850BD"&Measurement_Timestamp=="2015-06-09 20:43:14.000") %>% select(Battery_no)
+
+sampe <- Mrg_4 %>% filter(Unique_ID=="13EBB00C-EB3A-486A-8143-8BB8581ABF8F") %>% select(Battery_discharge,Battery_cond,Battery_vt)
+
+
+sampe2 <- mrg_41 %>% filter(Unique_ID=="13EBB00C-EB3A-486A-8143-8BB8581ABF8F") %>% select(Battery_no)
+
+```
+
+# JMJPFU
+15-9-2016
+
+Let us cbind all the data into one
+
+```{r}
+
+newsubset <- Mrg_4[,5:13] 
+
+New_mrg_back <- New_mrg # Taking a backup
+
+New_mrg <- cbind(New_mrg,newsubset)
+
+# Removing the unwanted columns of batteris
+
+New_mrg$Battery_cond <- NULL
+
+New_mrg$Battery_vt <- NULL
+
+
+```
+
+I accidently changed the battery_cond value from factor to numeric. This has to be changed back to factor by copying from the same column as New_mrg
+
+#JMJPFU
+# 19 Sept 2016
+
+From today we will first upload the conductance data and then look for trends within this dataset
+
+```{r}
+
+# Reading in data
+
+All_discharge <- read.csv("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Battery Conductance I.csv",sep="|",header=FALSE)
+
+All_discharge_II <- read.csv("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Battery Conductance II.csv",sep="|",header=FALSE)
+
+
+
+# Cleaning the first record
+
+All_discharge[1,1] <- "92C81F0F-251E-4E28-9541-0C3E9FBBCC71"
+
+All_discharge_II[1,1] <- "6C6F3E57-53FC-4215-9162-60A85CEBBAFD"
+
+All_discharge_consol <- rbind(All_discharge,All_discharge_II)
+
+# Naming the variables
+
+colnames(All_discharge) <- names(Vodafone.Battery.Conductance[1:15])
+
+colnames(All_discharge_II) <- names(Vodafone.Battery.Conductance[1:15])
+
+```
+
+# Getting in other variables also
+
+```{r}
+filename <- list.files(path = "C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader")
+
+
+for(i in 1:length(filename)){
+  
+  temppath <- paste0("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader/",filename[i])
+  
+  temp_discharge <-  read.csv(temppath,sep="|",header=FALSE)
+  temp_discharge[1,1] <- paste(temp_discharge[2,1])
+  colnames(temp_discharge) <- colnames(Vod_bat_discharge)[1:12]
+  Battery_discharge2 <- rbind(Battery_discharge2,temp_discharge)
+  
+  
+}
+
+
+
+
+temp_discharge <-  read.csv("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Battery Discharge XIII.csv",sep="|",header=FALSE)
+
+temp_discharge[1,1] <- paste(temp_discharge[2,1])
+
+colnames(temp_discharge) <- colnames(Vod_bat_discharge)[1:12]
+
+Battery_discharge1 <- rbind(Battery_discharge1,temp_discharge)
+
+
+##########################
+Battery_discharge2 <- data.frame(matrix(nrow=1,ncol= 12))
+colnames(Battery_discharge2) <- colnames(Vod_bat_discharge)[1:12]
+
+
+Battery_discharge <- rbind(Battery_discharge,temp_discharge)
+
+#################
+
+Battery_discharge <- read.csv("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Battery Discharge VIII.csv",sep="|",header=FALSE)
+
+# Cleaning the first record
+
+Battery_discharge[1,1] <- "2CCFFB47-FFC2-4824-B9CB-0A0228259C93"
+
+# Renaming the variables
+
+colnames(Battery_discharge) <- colnames(Vod_bat_discharge)[1:12]
+
+# Lets check for the first battery which had problems
+
+"5C662FAB-6334-49BF-9A08-1BB9F44AA9F6"
+
+temp <- Battery_discharge %>% filter(Unique_ID == "0124308E-E6E8-4AE7-ABBE-E56561FE8CC0")
+
+# Initial check on the voltage
+
+q2 <- ggplot(data=temp,aes(Measurement_Timestamp,Voltage,group=1)) + geom_point()
+q2 + geom_smooth() + theme(axis.text.x = element_text(angle=70,hjust = 1))
+
+
+```
+
+From Tomorrow, start a new variable to load the voltage data
+
+# JMJPFU
+# 22-Sept-2016
+
+Now to load the Temperature data and see the behaviours
+
+```{r}
+
+
+Battery_voltemp1 <- data.frame(matrix(nrow=0,ncol= 20))
+colnames(Battery_voltemp1) <- colnames(Vod_bat_vt)[1:20]
+
+filename <- list.files(path = "C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader")
+
+
+for(i in 1:length(filename)){
+  
+  temppath <- paste0("C:/Customers/Celltraq/Celltraq_CSV_DATA/Celltraq_CSV_DATA/By Type/Loader/",filename[i])
+  
+  temp_voltemp <-  read.csv(temppath,sep="|",header=FALSE)
+  temp_voltemp[1,1] <- paste(temp_voltemp[2,1])
+  colnames(temp_voltemp) <- colnames(Vod_bat_vt)[1:20]
+  Battery_voltemp1 <- rbind(Battery_voltemp1,temp_voltemp)
+  
+  
+}
+
+
+
+```
+
+# JMJPFU
+# 7-10-2016
+
+Now to do an experiment to create a new data frame with the profile of batteries. 
+
+```{r}
+
+# Getting relevant info about the battery
+
+filt4 <- filt1 %>% filter(Unique_ID == "DCBCB89C-CB55-4FE3-8B87-3105EF9F7570")
+Temp_bat <- Battery_discharge %>% filter(Unique_ID == "DCBCB89C-CB55-4FE3-8B87-3105EF9F7570")
+Temp_bat_sec <- Battery_voltemp %>% filter(Unique_ID == "DCBCB89C-CB55-4FE3-8B87-3105EF9F7570")
+
+# Consolidating all info together
+
+Temp_bat1 <- Temp_bat %>% select(Measurement_Timestamp,Voltage)
+Temp_bat1$measure <- "Voltage"
+
+Temp_bat2 <- Temp_bat %>% filter(Current < 50) %>% select(Measurement_Timestamp,Current)
+Temp_bat2$measure <- "Current"
+
+Temp_bat3 <- filt4 %>% select(Measurement_Timestamp,Conductance)
+Temp_bat3$measure <- "Conductance"
+
+Temp_bat4 <- Temp_bat_sec %>% select(Measurement_Timestamp,Temperature)
+Temp_bat4$measure <- "Temperature"
+
+Temp_bat5 <- Temp_bat_sec %>% select(Measurement_Timestamp,Voltage)
+Temp_bat5$measure <- "Volttemp"
+
+colnames(Temp_bat1) <- colnames(Temp_bat2) <- colnames(Temp_bat3) <- colnames(Temp_bat4) <- colnames(Temp_bat5) <- c("Measurement_Timestamp","Variable","measure")
+
+Temp_bat_consol <- rbind(Temp_bat1,Temp_bat2,Temp_bat3,Temp_bat4,Temp_bat5)
+
+# Date variables
+
+Temp_bat_consol$Date <- as.Date(as.character(Temp_bat_consol$Measurement_Timestamp))
+
+Temp_bat_consol$Date1 <- as.POSIXct(as.character(Temp_bat_consol$Measurement_Timestamp))
+# No of cycles when the batteries were tested
+
+bat_test <- unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date))
+
+bt <- nrow(unique(Temp_bat_consol %>% filter(measure=="Voltage") %>% select(Date)))
+
+# Start a for loop for aggregating details
+
+for(i in 1:bt){
+  
+  temp_dt <- paste(bat_test[i,1])
+  
+  Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == temp_dt ) #
+  
+  # Getting the voltage data
+  
+  temp_volt <- Temp_bat_spot2 %>% filter(measure == "Voltage")
+  
+  for(j in 1:(nrow(temp_volt)-1)){
+    
+    temp_volt$voltdiff[j] <- temp_volt$Variable[j+1] - temp_volt$Variable[j]
+    
+    
+  }
+  
+  cou <- 0
+  
+  temp_volt$sign <- NA
+  
+  for(k in 1:(nrow(temp_volt)-1)){
+    
+    mult <- temp_volt$voltdiff[k] * temp_volt$voltdiff[k+1]
+    
+    if(mult <=0){
+      
+      if(mult < 0){
+        
+      cou <- cou+1
+      
+      temp_volt$sign[k+1] <- paste0("change" ,cou)  }
+      
+      else if(mult == 0 & (temp_volt$voltdiff[k]< 0||temp_volt$voltdiff[k+1]< 0) ){ 
+        
+        cou <- cou+1
+      
+      temp_volt$sign[k+1] <- paste0("change" ,cou) 
+        
+        
+        }
+        
+      } # If statement if mult < 0
+    
+    
+    
+  }
+  
+  
+  
+  
+  
+}
+
+# To find difference in time
+
+z <- difftime(temp_volt$Date1[28], temp_volt$Date1[1], units = "secs")
+
+t <- as.numeric(z, units = "secs")
+
+y <- temp_volt$Variable[28]- temp_volt$Variable[138]
+
+y/t
+
+```
+
+# JMJPFU
+# 11-Oct-2016
+
+The next task is to calculate the slopes of the charge and discharge profiles
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+temp_volt_set1 <- temp_volt %>% filter(!is.na(temp_volt$sign)) # taking only those values where the transition happens
+
+# Looping over all the sets where there is a transition
+
+for(i in 1:nrow(temp_volt_set1)){
+  
+  # For the first transition calculating the time difference and the difference between the variable values
+  
+  if(i==1){temp_volt_set1$timediff[i] <- as.numeric(difftime(temp_volt_set1$Date1[i],temp_volt$Date1[1], units = "secs"))
+  temp_volt_set1$slp[i] <- temp_volt$Variable[1]-temp_volt_set1$Variable[i]
+  
+  temp_range <- min(temp_volt %>% filter(Date1 >= temp_volt$Date1[1] & Date1 <= temp_volt_set1$Date1[i]  ) %>% select(Variable))
+  
+  temp_volt_set1$dd[i] <- (temp_range/2.16)
+  
+  }
+  # For the Last transition calculating the time difference and the difference between the variable values
+  else if(i==nrow(temp_volt_set1)){temp_volt_set1$timediff[i] <- as.numeric(difftime(temp_volt$Date1[nrow(temp_volt)],temp_volt_set1$Date1[i], units = "secs"))
+  temp_volt_set1$slp[i] <- temp_volt_set1$Variable[i] - temp_volt$Variable[nrow(temp_volt)]
+  temp_range <- min(temp_volt %>% filter(Date1 <= temp_volt$Date1[nrow(temp_volt)] & Date1 >= temp_volt_set1$Date1[i]) %>% select(Variable))
+  
+  temp_volt_set1$dd[i] <- (temp_range/2.16)
+  
+  }
+   # For all inbetween transitions calculating the time difference and the difference between the variable values
+  else{temp_volt_set1$timediff[i] <- as.numeric(difftime(temp_volt_set1$Date1[i],temp_volt_set1$Date1[i-1], units = "secs"))
+  temp_volt_set1$slp[i] <- temp_volt_set1$Variable[i-1] - temp_volt_set1$Variable[i]
+  temp_range <- min(temp_volt %>% filter(Date1 <= temp_volt_set1$Date1[i] & Date1 >= temp_volt_set1$Date1[i-1]) %>% select(Variable))
+  
+  temp_volt_set1$dd[i] <- (temp_range/2.16)
+  
+  }
+  
+  
+}
+
+# Take a subset of only those values where the time is more than 15 seconds
+
+temp_volt_set2 <- temp_volt_set1 %>% filter(timediff > 14)
+
+temp_volt_set2$slope <- temp_volt_set2$slp / temp_volt_set2$timediff
+
+
+# Classifying whether it is a charge or discharge
+
+for(i in 1:nrow(temp_volt_set2)){
+  
+  temp <- temp_volt_set2$slp[i]
+  
+  ifelse(temp > 0,temp_volt_set2$profile[i] <- "Discharge",temp_volt_set2$profile[i] <- "Charge")
+  
+}
+
+# Now to make some new variables out of the above readings
+
+# Making a new data set for variable as slope
+
+temp_volt_set3 <- temp_volt_set2 # Creating a new data set
+
+temp_volt_set3$Variable <- temp_volt_set3$slope # Making slope as the variable
+
+temp_volt_set3$measure <- temp_volt_set3$profile
+
+# Making a new data set only for Depth of discharge
+
+temp_volt_set4 <- temp_volt_set2 %>% filter(profile == "Discharge")
+
+temp_volt_set4$Variable <- temp_volt_set4$dd
+
+temp_volt_set4$measure <- "DOD"
+
+# Combining these two together
+
+temp_volt_set <- rbind(temp_volt_set3,temp_volt_set4)
+
+temp_volt_set <- 
+
+temp_volt_set <- temp_volt_set[,1:5]
+
+Temp_bat_consol <- rbind(Temp_bat_consol,temp_volt_set)
+
+
+```
+
+Creating the set of batteries where we want new features
+
+```{r}
+
+
+batdf1 <- filt1 %>% select(Unique_ID)
+
+batdf1$Unique_ID <- as.character(batdf1$Unique_ID)
+
+# Creating a new batdf1 for only first 5 to test the new function
+
+batdf1 <- unique(batdf1)
+
+# Let us merge batdf1 and battery_200 to remove the list of batteries who are already taken in Bat_newfeat3
+
+batdf2 <- merge(batdf1,Battery_200,all.x = TRUE)
+
+batdf1 <- batdf2 %>% filter(is.na(SD)) # This is the final list
+
+# Let us take a unique list of batteries and test various counts ( 18-Oct-2016)
+
+bat_dislist <- data.frame(unique(Battery_discharge$Unique_ID)) # 7000 batteries for all batteries from Battery_Discharge
+names(bat_dislist) <- "Unique_ID"
+
+bat_dislist$file <- "Discharge"
+
+# Taking list of batteries from the conductance list
+
+bat_conlist <- data.frame(unique(filt1$Unique_ID)) # 7330 batteries from teh Conductance list
+names(bat_conlist) <- "Unique_ID"
+# Now to merge both these to find only the list of commong batteries
+
+bat_common <- merge(bat_conlist,bat_dislist,all.x=TRUE) # If the by is not given then we get the complete list of x as is
+
+bat_common <- bat_common %>% filter(file == "Discharge")
+
+# Now to create a list of batteries for feature extraction from this list of common batteries
+
+batdf1 <- bat_common %>% select(Unique_ID)
+
+```
+
+
+
+
+
+
+
+Now to create an all encompassing function to loop over all the batteries and  create a consolidated data set with only the relevant data sets which are required for each battery
+
+```{r}
+
+
+bat_newfeat5 <- data.frame(matrix(nrow=0,ncol=9)) # 25 Oct bat_newfeat5
+
+colnames(bat_newfeat5) <- c( "Measurement_Timestamp","Variable","measure","Date","Date1","Battery","Plant","Site","String")
+
+for(i in 1001:2000){ # Looping over the data frame of the batteries where the required trend is required
+  
+  battery <- paste(batdf1[i,1]) # First get the battery
+  
+  bat_conall <- bat_select(battery) # Get the consolidated data for all batteries from the function bat_select
+  
+  bat_conall <- bat_conall[complete.cases(bat_conall),]
+  
+  # Finding all the dates where the voltage discharge profile is calculated
+  
+  bat_test <- unique(bat_conall %>% filter(measure=="Voltage") %>% select(Date))
+
+  bt <- nrow(unique(bat_conall %>% filter(measure=="Voltage") %>% select(Date)))
+  
+  # Getting the data for the slopes and depth of discharge from the above data
+  
+  volt_mean <- bat_conall %>% filter(measure=="Voltage") %>% select(Variable)
+  
+  fv <- floor(mean(volt_mean$Variable,na.rm = TRUE))
+  
+  ifelse(fv < 5,float_volt <- 2.23,float_volt <- 13.4)  # Setting the float voltage
+  
+  bat_sub <- bat_features(bt,bat_test,bat_conall,float_volt) # Function to get other features
+  
+  bat_conall <- rbind(bat_conall,bat_sub) # Consolidating all the data
+  
+  bat_conall$Battery <- battery # Adding the battery name also
+  
+  bat_others <- unique(filt1 %>% filter(Unique_ID == battery) %>% select(Site_Name,Plant_Name,String_Name))
+  
+  bat_conall$Plant <- bat_others$Plant_Name
+  bat_conall$Site <- bat_others$Site_Name
+  bat_conall$String <- bat_others$String_Name
+  
+  # Combining all the data together
+  
+  bat_newfeat5 <- rbind(bat_newfeat5,bat_conall)
+  
+  print(i)
+  
+}
+
+# Battery 81,87,106 not present
+
+# October-18-2016
+
+# Batdf1 : 456 
+
+# Saving the bat_newfeat4 file - Oct-18-2016
+
+save(bat_newfeat4,file = "bat_newfeat4.RData")
+
+```
+
+# JMJPFU
+# 12-Oct-2016
+
+Now to do some checks on the new data frame for those new features which were created
+
+Let us first check the range of the DOD values
+
+```{r}
+
+Dod_range <- bat_newfeat %>% filter(measure == "DOD") %>% select(Variable)
+
+range(Dod_range)
+
+
+```
+
+So the ranges of DOD is from 0.6 to 1.055.
+
+```{r}
+
+Temp_bat_consol <- bat_df %>% filter(Unique_ID == "00E16091-5359-4443-A4AA-4D25B93B00B6")
+
+filt4 <- filt1 %>% filter(Unique_ID == "00E16091-5359-4443-A4AA-4D25B93B00B6")
+Temp_bat <- Battery_discharge %>% filter(Unique_ID == "00E16091-5359-4443-A4AA-4D25B93B00B6")
+Temp_bat_sec <- Battery_voltemp %>% filter(Unique_ID == "00E16091-5359-4443-A4AA-4D25B93B00B6")
+```
+
+# JMJPFU
+# 25 Oct 2016
+
+Today we created the bat_newfeat5 with my Lords help. After this we will save this file as a RDS file and also remove the bat_newfeat4 from the data set. This is to save space and time.
+
+```{r}
+
+save(bat_newfeat5,file = "bat_newfeat5.RData")
+
+rm(bat_newfeat4)
+
+```
+
