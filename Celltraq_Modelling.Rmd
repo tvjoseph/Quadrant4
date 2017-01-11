@@ -629,3 +629,100 @@ So taking a look at the periods in which the batteries were showing some weaknes
 4. Try SVM with the tuning method # ISLR page 361
 5. Try out various options in Caret package
 
+# JMJPFU
+### 11-Jan-2017
+
+Let us first try the SVM using the tuning method. 
+
+## Tuning : Tuning can be done using the function tune():
+
+Let us set the following paramaeters for tuning : 
+1. Cost
+2. Sigma
+3. kernel
+
+```{r}
+set.seed(7)
+
+tuneSvm <- tune(svm,label~.,data=batDataset[,5:16],ranges = list(gamma=c(0.025,0.5,0.1,0.15,1),cost=seq(1,10,by=1),kernel=c("radial","linear","polynomial")))
+
+summary(tuneSvm)
+
+```
+
+So from the tuning of the variables the best performance is with the following parameters
+
+- best parameters:
+ gamma cost kernel
+ 0.025    1 radial
+
+- best performance: 0.002905276 
+
+Once tuning is done and the best possible parameters are identified, let us predict with the best available parameters.
+
+### Predicting with best model which was output from Tuning
+
+```{r}
+bestmod = tuneSvm$best.model
+
+summary(bestmod)
+
+# Predicting with the best model
+
+batTestSet$predicSVMTune <- predict(bestmod,newdata = batTestSet[,5:15])
+
+table(batTestSet$predicSVMTune)
+
+# Predicting again with the old model
+
+batTestSet$predicSVMRad2 <- predict(svmRadfit,newdata = batTestSet[,5:15])
+
+table(batTestSet$predicSVMRad2)
+
+```
+The new prediction predicted all the cases as Normal_period. I think the prediction with the first model ( svmRadfit) was the better of the lot.
+
+### Using the ROCR library for ROC curves
+
+Let us not attempt and use the ROCR library
+
+```{r}
+library(ROCR)
+
+pred <- validationSet$predict_SVM # Converting to a vector
+
+truth <- validationSet$label # Converting to a vector
+
+predObject <- prediction(pred,truth)
+
+perf <- performance(predObject,"tpr","fpr")
+
+plot(perf)
+
+```
+
+### Errors and Notes
+1. An error message cropped up related to the format of the data. It seems the vector of predictions is required in numerical format. Additional bit of massaging has to be done in the data to get to that level. The additional massaging to the data is as below.
+
+We need to get the fitted values for the class labels if the ROCR library is to work. The fitted labels can be got as below
+
+
+```{r}
+
+svmFitted <- svm(label~.,data=batDataset[,5:16],kernel="radial",cost=3,gamma=0.025,decision.values=T)
+
+fittedSvm <- attributes(predict(svmFitted,batDataset[,5:16],decision.values = TRUE))$decision.values
+
+predObject <- prediction(fittedSvm,batDataset$label)
+
+perf <- performance(predObject,"tpr","fpr")
+
+plot(perf)
+
+
+```
+
+### Tomorrow
+
+1. Proceed further with other methods of SVM from Caret Package.
+2. Proceed with training with other methods like LDA, GLMNET etc
