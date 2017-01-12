@@ -1,0 +1,17 @@
+---
+title: "Desoto_Att_Disc_Achieve"
+author: "Quadrant-4"
+date: "September 19, 2016"
+output: html_document
+---
+In this Document, we venture into observing the relationship between Attendence, Discipline and the grades obtained. Let us list down the various objectives which needs to be set out for this analysis. 
+
+1. Relationship between Attendence and grade
+2. Relationshp between discipline score and grade
+3. Relationship between Attendence and discipline
+4. Patterns in terms of Attendence - School,Race, Time of year, Economic status, Sections
+5. Patterns in terms of Discipline - School,Race, Time of year, Ecomonic status, Sections
+6. Patterns of grade - School, Subjects where grades dropping, Subjects where grade improving, 
+
+# Preparation of the data in the workable format
+

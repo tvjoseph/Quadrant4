@@ -1,0 +1,474 @@
+---
+title: "School_data"
+author: "Quadrant-4 Team"
+date: "29 August 2016"
+output: html_document
+---
+# JMJPFU
+
+Let us try to read in the data from the XML files
+
+C:\Customers\Edex\DeSoto_07\057906_000_2016TSDS_201603080301_InterchangeStaffAssociationExtensionOUT.xml
+
+C:\Customers\Edex\DeSoto_07\057906_000_2016TSDS_201603080304_InterchangeEducationOrganizationExtensionOUT.xml
+
+057906_000_2016TSDS_201603080320_InterchangeStudentAttendanceExtensionOUT
+
+```{r}
+
+library(XML)
+library(rvest)
+library(RCurl)
+
+url <- "C:/Customers/Edex/DeSoto_07/057906_000_2016TSDS_201603080301_InterchangeStaffAssociationExtensionOUT.xml"
+
+data <- htmlParse(getURL(url),asText = TRUE)
+
+data <- html(url)
+
+class(data)
+
+rvest_table_node <- html_node(data)
+
+rvest_table <- html_table(rvest_table_node)
+
+# Magrittr
+
+library(magrittr)
+
+rvest_table  <- html(url) %>% html_node("table.ultra_grid") %>% html_table()
+
+```
+
+Another method
+
+
+
+
+```{r}
+
+
+library(XML)
+
+doc <- xmlParse(url)
+root <- xmlRoot(doc)
+
+dataFrame <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+
+
+```
+
+# JMJPFU
+30 Aug 2016
+
+Let us do some experiments to get data in the form we want
+
+```{r}
+
+library(XML)
+
+# Step 1 - Getting the values of the data set
+doc <- xmlParse(url)
+root <- xmlRoot(doc)
+dataFrame <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+# Step - 2 - Unlisting and getting this into a data frame
+length(dataFrame) # 3287 list objects
+te1 <- unlist(dataFrame[1])
+te2 <- t(data.frame(te1))
+
+
+te3 <- unlist(dataFrame[772])
+te4 <- t(data.frame(te3))
+
+# Staff
+te5 <- unlist(dataFrame$Staff)
+
+te5[1]
+te6 <- data.frame(te5)
+te6 <- t(te6)
+
+colnames(te6) <- names(te5)
+
+
+te5 <- unlist(dataFrame[1000])
+te7 <- t(data.frame(te5))
+colnames(te7) <- names(te5)
+
+te6 <- unlist(dataFrame[1001])
+te8 <- t(data.frame(te6))
+colnames(te8) <- names(te6)
+
+te9 <- rbind(te7,te8)
+
+te9 <- unlist(dataFrame[1010])
+te10 <- t(data.frame(te9))
+colnames(te10) <- names(te9)
+
+# Another check
+
+te6 <- xmlSApply(root,xmlValue)
+te6[1]
+
+```
+
+
+First Step
+
+Let us get a distribution of how the fields are distributed
+
+```{r}
+lengthdf2 <- data.frame(length=NA)
+for(i in 1:length(dataFrame)){
+  
+  
+  
+  lengthdf2[i,1] <- length(unlist(dataFrame[i]))
+  
+  
+}
+
+
+
+```
+
+We have different length for staff columns. The heighest being 21. Let us see them at detail
+
+```{r}
+
+which(lengthdf$length==14)
+
+te9 <- unlist(dataFrame[461])
+
+```
+
+Let us not try with Student attendance
+
+```{r}
+
+url <- "C:/Customers/Edex/DeSoto_07/057906_000_2016TSDS_201603080317_InterchangeStudentAttendanceExtensionOUT.xml"
+
+doc <- xmlParse(url)
+root <- xmlRoot(doc)
+temp <- xmlSApply(root,xmlValue)
+
+temp[1]
+
+
+```
+
+
+
+
+
+```{r}
+
+doc <- xmlTreeParse(url,useInternal = TRUE)
+
+top <- xmlRoot(doc)
+
+names(top)
+
+length(names(top))
+
+names(top)[[3287]]
+
+names(top)[[1]]["CredentialFieldDescriptor"]
+
+```
+
+The above did not work as expected
+
+Let us try with xml2 data
+
+```{r}
+pg <- read_xml(url)
+
+recs <- xml_find_all(pg,".//CodeValue")
+
+length(recs)
+
+# Nor working
+
+school_try1 <- htmlParse(url)
+
+```
+
+
+```{r}
+
+library(xml2)
+
+schoold_dat <- read_xml(url)
+
+xml_name(schoold_dat)
+
+xml_children(schoold_dat)
+
+```
+
+JMJPFU
+
+# Let us now try the discipline data
+
+```{r}
+
+library(XML)
+
+url <- "C:/Customers/Edex/DeSoto_07/057906_000_2016TSDS_201603080324_InterchangeStudentDisciplineExtensionOUT.xml"
+
+attfile <- xmlTreeParse(url,useInternal=TRUE)
+
+root <- xmlRoot(attfile)
+
+dataFrame <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+
+```
+
+# Let us try some other method
+
+Experiment
+
+```{r}
+
+library("XML")
+library("RCurl")
+
+url1 <- "https://doc-0s-9c-docs.googleusercontent.com/docs/securesc/ha0ro937gcuc7l7deffksulhg5h7mbp1/rk8a2gr7rl8e8s8j0luiak0cahtcjnak/1459080000000/07495711428163271540/*/0BzmnaOABaMIgTEl6SnRUdU9Eb2M?e=download"
+bin <- getURL(url)
+con <- file("reference.xml", open = "wb")
+writeBin(bin, con)
+close(con)
+OperationList <- xmlTreeParse("reference.xml", useInternal = TRUE)
+
+```
+
+
+
+```{r}
+doc <- root[1:5]
+
+Disc <- xmlToDataFrame(nodes=getNodeSet(doc,"/BehaviorDescriptor"))
+
+
+```
+
+#JMJPFU
+
+Let us try the enrollment data
+
+```{r}
+
+library(XML)
+
+filenames <- list.files(path="C:/Customers/Edex/DeSoto_10/In_action")
+
+url <- paste0("C:/Customers/Edex/DeSoto_10/excel/In_action/",filenames[2])
+
+attfile <- xmlTreeParse(url,useInternal=TRUE)
+
+root <- xmlRoot(attfile)
+
+dataFrame <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+
+dataFrame[10]
+
+names(dataFrame[[1]])
+
+```
+So tomorrow let us continue to unroll the Enrollment data . So there are basically three list values , Graduation plan, Studentschoolassociation and studentsectionassociation.
+
+Need to loop over, look at each names , unlist the result and store in the respective dataframe
+ 
+# JMJPFU
+2 Sept 2016
+
+```{r}
+
+
+
+for(i in 7:14){ #Iterate over file names
+  
+  url <- paste0("C:/Toms/customers/Edex/DeSoto_10/excel/In_action/",filenames[i]) # Storing file as URL
+  basefile <- xmlTreeParse(url)
+  
+  root_enr <- xmlRoot(basefile)
+    basedf_enr <- xmlSApply(root_enr,function(x) xmlSApply(x,xmlValue))
+    cou <- 1
+    cou1 <- 1
+    cou2 <- 1
+    grad_pln <- data.frame(matrix(NA,nrow=1,ncol=5))
+    studref_ssa <- data.frame(matrix(NA,nrow=1,ncol=5))
+    studsec_ssa <- data.frame(matrix(NA,nrow=1,ncol=5))
+   
+   
+   for(j in 1:length(basedf_enr)){
+     
+     tempname <- names(basedf_enr[j])
+     
+     
+     if(tempname=="GraduationPlan"){
+       
+       inname <- basedf_enr[[j]]
+       
+       for(k in 1:length(inname)){
+         
+         if(names(inname[k])=="GraduationPlanType"){grad_pln[cou,1] <- inname[[k]]}
+         else if(names(inname[k])=="TotalCreditsRequired"){grad_pln[cou,2] <- inname[[k]]} 
+         else if(names(inname[k])=="EducationOrganizationReference"){grad_pln[cou,3] <- inname[[k]]}
+         
+         
+       } # Inner For loop for elements of graduation plan
+       
+       cou <- cou+1
+       
+     } # End of if of Graduation plan
+     
+     
+     else if(tempname=="StudentSchoolAssociation"){
+       
+       inname <- basedf_enr[[j]]
+       
+       for(k in 1:length(inname)){
+         
+         if(names(inname[k])=="StudentReference"){studref_ssa[cou1,1] <- inname[[k]]}
+         else if(names(inname[k])=="SchoolReference"){studref_ssa[cou1,2] <- inname[[k]]} 
+         else if(names(inname[k])=="EntryDate"){studref_ssa[cou1,3] <- inname[[k]]}
+         else if(names(inname[k])=="EntryGradeLevel"){studref_ssa[cou1,4] <- inname[[k]]}
+         else if(names(inname[k])=="GraduationPlanReference"&length(inname[[k]])==0){studref_ssa[cou1,5] <- NA}else{studref_ssa[cou1,5] <-inname[[k]]}
+         
+       } # Inner For loop for elements of Student School Association
+       
+       cou1 <- cou1+1
+       
+     } # End of if of Student School Association
+     
+     
+     else if(tempname=="StudentSectionAssociation"){
+       
+       inname <- basedf_enr[[j]]
+       
+       for(k in 1:length(inname)){
+         
+         if(names(inname[k])=="StudentReference"){studsec_ssa[cou2,1] <- inname[[k]]}
+         # else if(names(inname[k])=="SectionReference"){studsec_ssa[cou2,2] <- inname[[k]]} This line can be eliminated as there are lots of details embedded
+         else if(names(inname[k])=="BeginDate"){studsec_ssa[cou2,3] <- inname[[k]]}
+         else if(names(inname[k])=="EndDate"){studsec_ssa[cou2,4] <- inname[[k]]}
+         else if(names(inname[k])=="HomeroomIndicator"){studsec_ssa[cou2,5] <- inname[[k]]}
+         
+       } # Inner For loop for elements of Student Section Association
+       
+       cou2 <- cou2+1
+       
+     } # End of if of Student Section Association
+     
+   } # For loop to loop over all elments of the tree element
+   
+ studref_consol <- rbind(studref_consol,studref_ssa)  
+ studsec_consol <- rbind(studsec_consol,studsec_ssa)
+ grad_consol <- rbind(grad_consol,grad_pln)
+  
+} # End of for loop to loop over the files in the director
+
+
+studref_consol <- studref_ssa
+studsec_consol <- studsec_ssa
+grad_consol <- grad_pln
+
+
+```
+
+Getting more details on the Student section association
+
+```{r}
+
+for(i in 2:length(filenames)){ # Loopint over the files
+  
+   url <- paste0("C:/Toms/customers/Edex/DeSoto_10/excel/In_action/",filenames[i]) # Storing file as URL
+  basefile <- xmlTreeParse(url)
+  
+  root_enr <- xmlRoot(basefile)
+   
+    cou <- 1
+    
+    
+    studsec_exp <- data.frame(matrix(NA,nrow=1,ncol=6)) # DF for the expanded student sections
+    
+    for(j in 1:length(root_enr)){
+     
+     tempname <- names(root_enr[j])
+     
+     
+        if(tempname=="StudentSectionAssociation"){
+       
+         
+          studsec_exp[cou,1] <- xmlValue(root_enr[j]$StudentSectionAssociation[2]$SectionReference[1]$SectionIdentity[1]$StateOrganizationId[1]$text) # Get state Org ID
+
+          studsec_exp[cou,2] <- xmlValue(root_enr[j]$StudentSectionAssociation[2]$SectionReference[1]$SectionIdentity[2]$LocalCourseCode[1]$text) # LocalCourse Code
+
+          studsec_exp[cou,3] <- xmlValue(root_enr[j]$StudentSectionAssociation[2]$SectionReference[1]$SectionIdentity[3]$SchoolYear[1]$text) # School Year
+
+          studsec_exp[cou,4] <- xmlValue(root_enr[j]$StudentSectionAssociation[2]$SectionReference[1]$SectionIdentity[4]$Term[1]$text) # Term
+
+          studsec_exp[cou,5] <-xmlValue(root_enr[j]$StudentSectionAssociation[2]$SectionReference[1]$SectionIdentity[5]$ClassPeriodName[1]$text) # Class Period name
+
+          studsec_exp[cou,6] <- xmlValue(root_enr[j]$StudentSectionAssociation[2]$SectionReference[1]$SectionIdentity[6]$Location[1]$text) # Location 
+       
+       
+       
+        cou <- cou+1
+       
+     } # End of if of Student Section Association
+     
+     
+    
+  
+     
+    } # Inner for loop for length of root file
+  
+  
+  studsec_exp_consol <- rbind(studsec_exp_consol,studsec_exp) # Consolidating the values
+  
+} # Outer for loop for looping over the file folder
+
+
+studsec_exp_consol <- studsec_exp
+
+
+
+
+
+ #Iterate over file names
+  
+ 
+   
+   
+   
+     
+     
+
+
+
+
+```
+
+JMJPFU
+7 Sept 2016
+
+Now that it is done, cbinding the two data frames
+
+
+
+```{r}
+
+studsec_consol <- cbind(studsec_consol,studsec_exp_consol)
+
+colnames(studsec_consol)[6:11] <- names(root_enr[862]$StudentSectionAssociation[2]$SectionReference[1]$SectionIdentity)
+
+colnames(studsec_consol)[1:5] <-   c("StudentUniqueStateId","SectionReference","BeginDate","EndDate","HomeroomIndicator")
+
+studsec_consol$SectionReference <- NULL # Removing the section reference as these variables have been expanded from varible 5 onwards
+
+
+
+```
+

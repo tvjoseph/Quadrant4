@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1474347796216.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "DE2577E7",
+    "lastKnownWriteTime" : 19421975264362597,
+    "last_content_update" : 1474347796216,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "uc2kajwzr4",
+        "caption" : "All_Stud_timeline",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=All_Stud_timeline&cache_key=uc2kajwzr4",
+        "displayedObservations" : "679484",
+        "environment" : "",
+        "object" : "All_Stud_timeline",
+        "totalObservations" : "679484",
+        "variables" : "50"
+    },
+    "relative_order" : 11,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

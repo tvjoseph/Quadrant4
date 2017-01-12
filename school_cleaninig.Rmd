@@ -1,0 +1,569 @@
+---
+title: "Edex"
+author: "Quadrant-4"
+date: "August 30, 2016"
+output: html_document
+---
+#JMJPFU
+This is for cleaning the school data. Extracting it from the xml files and then creating a data frame
+
+```{r}
+library(XML)
+
+url <- "C:/Toms/customers/Edex/DeSoto_07/057906_000_2016TSDS_201603080301_InterchangeStaffAssociationExtensionOUT.xml"
+
+doc <- xmlParse(url)
+root <- xmlRoot(doc)
+sch_list <- xmlSApply(root,function(x) xmlSApply(x,xmlValue))
+
+length(sch_list)
+
+# Credential_Field_descriptor
+
+Credent_df <- data.frame(Codevalue=NA,Description=NA,Eduorgref = NA)
+
+for(i in 1:449){
+  
+  temp1 <- unlist(sch_list[i])
+  Credent_df[i,1] <- temp1[[1]]
+  Credent_df[i,2] <- temp1[[2]]
+  Credent_df[i,3] <- temp1[[3]]
+  
+  
+}
+
+# Staff DF
+
+
+
+# Creating an empty data frame
+
+staff_df <- data.frame(matrix(NA,nrow=1,ncol=19))
+ cou <- 1
+ 
+for(i in 450:1902){
+  
+  temp1 <- unlist(sch_list[i])
+ 
+  for(j in 1:7){
+    
+    staff_df[cou,j] <- temp1[[j]]
+    
+  }
+  
+  for(k in 8:length(temp1)){
+    if(names(temp1[k])=="Staff.ElectronicMail"){staff_df[cou,8] <- temp1[[k]]}
+    else if(names(temp1[k])=="Staff.HispanicLatinoEthnicity" ){staff_df[cou,9] <- temp1[[k]]}
+    else if(names(temp1[k])=="Staff.Race" ){staff_df[cou,10] <- temp1[[k]]}
+    else if(names(temp1[k])=="Staff.HighestLevelOfEducationCompleted" ){staff_df[cou,11] <- temp1[[k]]}
+    else if(names(temp1[k])=="Staff.YearsOfPriorProfessionalExperience" ){staff_df[cou,12] <- temp1[[k]]}
+    else if(names(temp1[k])=="Staff.TX-LEAReference" ){staff_df[cou,19] <- temp1[[k]]}
+  }
+    
+    len <- length(temp1[names(temp1)=="Staff.Credentials"])
+    cred <- temp1[names(temp1)=="Staff.Credentials"]
+    
+    if(len>0&len<=6){
+      for(l in 1:len){
+        
+        staff_df[cou,(12+l)] <- cred[[l]]
+        
+        
+      } # End of for loop in the if loop
+      
+      
+      
+    } # End of if loop for Credentials
+    
+  
+  
+  cou <- cou+1
+  
+  
+ } # End of big for loop
+
+# Staff Education Org Emp Association
+ 
+ 
+staffedu_df <- data.frame(matrix(nrow=1,ncol=5))
+
+cou = 1
+
+for(i in 1903:length(sch_list)){
+  
+  temp1 <- unlist(sch_list[i])
+  staffedu_df[cou,1] <- temp1[[1]]
+  staffedu_df[cou,2] <- temp1[[2]]
+  staffedu_df[cou,3] <- temp1[[3]]
+  staffedu_df[cou,4] <- temp1[[4]]
+  staffedu_df[cou,5] <- temp1[[5]]
+  
+  cou = cou+1
+  
+}
+
+colnames()
+
+
+names(sch_list[1902]) # This will produce the list of Teachers
+
+```
+
+That extraction method worked. Let us take a different type of URL
+
+# Student Attendance
+
+```{r}
+
+library(XML)
+
+url <- "C:/Toms/customers/Edex/DeSoto_07/057906_000_2016TSDS_201603080316_InterchangeStudentAttendanceExtensionOUT.xml"
+
+attfile <- xmlTreeParse(url)
+
+class(attfile)
+
+root <- xmlRoot(attfile)
+
+plantcat <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+
+attend2 <- data.frame(t(plantcat))
+
+```
+
+The above also worked. 
+
+
+# Student Enrollment
+
+```{r}
+library(XML)
+
+url <- "C:/Toms/customers/Edex/DeSoto_10/057906_000_2016TSDS_201607310329_InterchangeStudentEnrollmentExtensionOUT.xml"
+
+attfile <- xmlTreeParse(url)
+
+class(attfile)
+
+root <- xmlRoot(attfile)
+
+plantcat1 <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+
+# The above looks like a list element. We can do with the earlier approach
+
+stud_enrol <- data.frame(matrix(NA,nrow=1,ncol=6))
+stud_sect <- data.frame(matrix(NA,nrow=1,ncol=5))
+
+# Starting for loops
+
+cou1 <- 1
+cou2 <- 1
+
+for(i in 1:length(plantcat)){
+  
+  if(names(plantcat[i])=="StudentSchoolAssociation"){
+  
+      temp <- unlist(plantcat[i])
+  
+      for(j in 1:length(temp)){
+        
+        if(names(temp[j])=="StudentSchoolAssociation.StudentReference"){stud_enrol[cou1,1] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSchoolAssociation.SchoolReference"){stud_enrol[cou1,2] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSchoolAssociation.EntryDate"){stud_enrol[cou1,3] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSchoolAssociation.EntryGradeLevel"){stud_enrol[cou1,4] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSchoolAssociation.ExitWithdrawDate"){stud_enrol[cou1,5] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSchoolAssociation.ExitWithdrawType"){stud_enrol[cou1,6] <- temp[[j]]}
+          
+    
+          } # Inner loop to store the list values
+  
+      cou1 <- cou1 + 1 # Incrementing the counter
+      
+    } # Ending the if loop for StudenSchoolAssociation
+  
+  
+  else if(names(plantcat[i])=="StudentSectionAssociation"){
+  
+      temp <- unlist(plantcat[i])
+  
+      for(j in 1:length(temp)){
+        
+        if(names(temp[j])=="StudentSectionAssociation.StudentReference"){stud_sect[cou2,1] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSectionAssociation.SectionReference"){stud_sect[cou2,2] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSectionAssociation.BeginDate"){stud_sect[cou2,3] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSectionAssociation.EndDate"){stud_sect[cou2,4] <- temp[[j]]}
+        else if(names(temp[j])=="StudentSectionAssociation.HomeroomIndicator"){stud_sect[cou2,5] <- temp[[j]]}
+    
+          
+          } # Inner loop to store the list values
+      
+      cou2 <- cou2 + 1 # Increamenting the counter
+  
+    } # Ending the if loop for StudenSectionAssociation
+  
+  
+  
+  
+} # Outer for loop to unroll all the list elements
+
+colnames(stud_enrol) <- names(plantcat$StudentSchoolAssociation)
+
+colnames(stud_sect) <- names(plantcat$StudentSectionAssociation)
+
+```
+
+JMJPFU
+
+The above also worked.
+
+# Student Grade
+
+```{r}
+
+library(XML)
+
+url <- "C:/Toms/customers/Edex/DeSoto_07/057906_000_2016TSDS_201603080334_InterchangeStudentGradeExtensionOUT.xml"
+
+attfile <- xmlTreeParse(url,useInternal=TRUE)
+
+# attfile1 <- xmlParse(url)
+
+class(attfile)
+
+root <- xmlRoot(attfile)
+
+# root1 <- xmlRoot(attfile1)
+
+
+xmlName(root) # Gives "InterchangeStudentGrade"
+
+rootname <- names(root) # 16134 names to this root
+
+names(root[[1]]) # Gives 4 names , however there are some nested roots
+
+names(root[[1]][[3]][[1]][[1]][[1]]) # grade > Student Association ref > Student section identity > student identity > student unique state id
+
+root[[1]][[3]][[1]][[1]][[1]][[1]] # Gives the Student unique state ID
+
+root[[1]][[3]][[1]][[2]][[6]][[1]] # Gives section ID & State Org id
+
+xmlValue(root[[1]][[3]])
+
+details <- xpathApply(root,"//Grade/StudentSectionAssociationReference/StudentSectionAssociationIdentity/StudentIdentity/StudentUniqueStateId",xmlValue)
+
+# Another method
+
+details <- xmlToDataFrame(nodes=getNodeSet(url,))
+
+
+
+
+
+#######
+
+
+plantcat1 <- xmlSApply(root1, function(x) xmlSApply(x, xmlValue))
+
+plantcat <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+
+
+plantcat <- data.frame(t(plantcat))
+
+
+
+
+```
+
+The above method did not work well for this XML file. Need to find some other methods to do this.
+
+```{r}
+
+
+
+
+
+
+plantcat1 <- xmlSApply(root1, function(x) xmlSApply(x, xmlValue))
+
+plantcat <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+
+
+plantcat <- data.frame(t(plantcat))
+
+plantcat$StudentSectionAssociationReference <- plantcat$GradingPeriodReference <- NULL
+
+
+graddf <- data.frame(matrix(NA,nrow=1,ncol=12))
+
+
+
+
+
+
+
+
+
+
+
+colnames(graddf) <- c(names(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[1]$StudentIdentity[1]),names(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[1]),names(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[2]),names(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[3]),names(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[4]),names(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[5]),names(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[6]),names(doc[4]$GradingPeriodReference[1]$GradingPeriodIdentity[1]),names(doc[4]$GradingPeriodReference[1]$GradingPeriodIdentity[2]),names(doc[4]$GradingPeriodReference[1]$GradingPeriodIdentity[3]), names(doc[1]),names(doc[2])) 
+
+```
+
+The above worked. Thank God
+
+
+
+Now to read the files one by one and prepare seperate data frames for the method we already know
+
+```{r}
+
+filenames <- list.files(path = "C:/Toms/customers/Edex/DeSoto_10" )
+
+# For Grades
+
+grades_consol <- graddf
+cou <- 0
+
+for(i in filenames){
+  
+  
+  
+  if(strsplit(i,"_")[[1]][5]=="InterchangeStudentGradeExtensionOUT.xml"){
+    
+    
+    
+    cou <- cou+1 # A temp counter
+    print(cou) # Printing the counter to track
+   
+    url <- paste0("C:/Toms/customers/Edex/DeSoto_07/",i) # Pasting the path to the file name
+
+    attfile <- xmlTreeParse(url,useInternal=TRUE) # Creating the parsetree
+
+    root <- xmlRoot(attfile)  # Creating the root file
+    
+    
+    for(i in 1:length(names(root))){
+  
+        doc <- root[i]$Grade
+  
+       # Storing the student ID
+  
+        graddf[i,1] <- xmlValue(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[1]$StudentIdentity[1]$StudentUniqueStateId[1]$text)
+  
+      # Storing section values
+        
+        graddf[i,2] <- xmlValue(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[1]$StateOrganizationId[1]$text)
+
+        graddf[i,3] <- xmlValue(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[2]$LocalCourseCode[1]$text)
+
+        graddf[i,4] <- xmlValue(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[3]$SchoolYear[1]$text)
+
+        graddf[i,5] <- xmlValue(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[4]$Term[1]$text)
+
+        graddf[i,6] <- xmlValue(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[5]$ClassPeriodName[1]$text)
+
+        graddf[i,7] <- xmlValue(doc[3]$StudentSectionAssociationReference[1]$StudentSectionAssociationIdentity[2]$SectionIdentity[6]$Location[1]$text)
+    
+  
+        # Grading values
+
+        graddf[i,8] <- xmlValue(doc[4]$GradingPeriodReference[1]$GradingPeriodIdentity[1]$GradingPeriod[1]$text)
+
+        graddf[i,9] <- xmlValue(doc[4]$GradingPeriodReference[1]$GradingPeriodIdentity[2]$SchoolYear[1]$text)
+
+        graddf[i,10] <- xmlValue(doc[4]$GradingPeriodReference[1]$GradingPeriodIdentity[3]$StateOrganizationId[1]$text)  
+
+        # Grade info
+  
+        graddf[i,11] <- xmlValue(doc[1]$NumericGradeEarned[1]$text) # These was an error in this step. So no values were loaded
+  
+        # Grading type
+  
+        graddf[i,12] <- xmlValue(doc[2]$GradeType[1]$text)
+    
+   } # End of the for Loop
+    
+    
+    grades_consol <- rbind(grades_consol,graddf)
+    
+    
+    } # End of the if loop
+  
+  
+} # End of iteration over the files in the 
+
+```
+
+JMJPFU
+1 Sept 2016
+
+Let us do the loop iteration for the enrollment data
+
+
+
+
+  
+    
+    
+    
+    
+
+    attfile <- xmlTreeParse(url,useInternal=TRUE) # Creating the parsetree
+
+    root <- xmlRoot(attfile)  # Creating the root file
+    
+    
+    for(i in 1:length(names(root))){
+  
+        doc <- root[i]$Grade
+
+```{r}
+
+# The above looks like a list element. We can do with the earlier approach
+
+library(XML)
+  
+    consol_enrol <- data.frame(matrix(NA,nrow=1,ncol=6))
+    consol_sect <- data.frame(matrix(NA,nrow=1,ncol=5))
+    
+    colnames(consol_enrol) <- names(plantcat$StudentSchoolAssociation)
+
+    colnames(consol_sect) <- names(plantcat$StudentSectionAssociation)
+    
+    cou <- 0
+
+
+for(i in filenames){
+  
+  if(strsplit(i,"_")[[1]][5]=="InterchangeStudentEnrollmentExtensionOUT.xml"){
+    
+    stud_enrol <- data.frame(matrix(NA,nrow=1,ncol=6))
+    stud_sect <- data.frame(matrix(NA,nrow=1,ncol=5))
+    
+    cou <- cou+1 # A temp counter
+    print(cou) # Printing the counter to track
+   
+    url <- paste0("C:/Toms/customers/Edex/DeSoto_10/",i) # Pasting the path to the file name
+    attfile <- xmlTreeParse(url)
+    root <- xmlRoot(attfile)
+    plantcat <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+    
+    # Starting for loops
+
+    cou1 <- 1
+    cou2 <- 1
+    
+    for(i in 1:length(plantcat)){
+  
+        if(names(plantcat[i])=="StudentSchoolAssociation"){
+  
+        temp <- unlist(plantcat[i])
+  
+          for(j in 1:length(temp)){
+        
+          if(names(temp[j])=="StudentSchoolAssociation.StudentReference"){stud_enrol[cou1,1] <- temp[[j]]}
+          else if(names(temp[j])=="StudentSchoolAssociation.SchoolReference"){stud_enrol[cou1,2] <- temp[[j]]}
+          else if(names(temp[j])=="StudentSchoolAssociation.EntryDate"){stud_enrol[cou1,3] <- temp[[j]]}
+          else if(names(temp[j])=="StudentSchoolAssociation.EntryGradeLevel"){stud_enrol[cou1,4] <- temp[[j]]}
+          else if(names(temp[j])=="StudentSchoolAssociation.ExitWithdrawDate"){stud_enrol[cou1,5] <- temp[[j]]}
+          else if(names(temp[j])=="StudentSchoolAssociation.ExitWithdrawType"){stud_enrol[cou1,6] <- temp[[j]]}
+          
+    
+          } # Inner loop to store the list values
+  
+          cou1 <- cou1 + 1 # Incrementing the counter
+      
+        } # Ending the if loop for StudenSchoolAssociation
+  
+  
+        else if(names(plantcat[i])=="StudentSectionAssociation"){
+  
+          temp <- unlist(plantcat[i])
+  
+          for(j in 1:length(temp)){
+        
+            if(names(temp[j])=="StudentSectionAssociation.StudentReference"){stud_sect[cou2,1] <- temp[[j]]}
+            else if(names(temp[j])=="StudentSectionAssociation.SectionReference"){stud_sect[cou2,2] <- temp[[j]]}
+            else if(names(temp[j])=="StudentSectionAssociation.BeginDate"){stud_sect[cou2,3] <- temp[[j]]}
+            else if(names(temp[j])=="StudentSectionAssociation.EndDate"){stud_sect[cou2,4] <- temp[[j]]}
+            else if(names(temp[j])=="StudentSectionAssociation.HomeroomIndicator"){stud_sect[cou2,5] <- temp[[j]]}
+    
+          
+           } # Inner loop to store the list values
+      
+          cou2 <- cou2 + 1 # Increamenting the counter
+  
+        } # Ending the if loop for StudenSectionAssociation
+  
+  
+  
+  
+    } # Outer for loop to unroll all the list elements
+    
+    colnames(stud_enrol) <- names(plantcat$StudentSchoolAssociation)
+
+    colnames(stud_sect) <- names(plantcat$StudentSectionAssociation)
+    
+    consol_enrol <- rbind(consol_enrol,stud_enrol)
+    consol_sect <- rbind(consol_sect,stud_sect)
+    
+    
+    
+  } # End of if loop defining if the file belongs to enrollment
+  
+} # End of outer For loop
+
+
+
+
+
+```
+
+# Student enrollment again
+
+There are two types of enrollment data. Will have to do one by one
+
+```{r}
+
+library(XML)
+
+filenames <- list.files(path = "C:/Toms/customers/Edex/DeSoto_10/excel/completed/In_action" )
+
+url <- paste0("C:/Toms/customers/Edex/DeSoto_10/excel/completed/In_action/",filenames[1]) # Pasting the path to the file name
+    attfile <- xmlTreeParse(url)
+    root <- xmlRoot(attfile)
+    plantcat <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+    
+    plantcat$
+
+
+
+```
+
+# JMJPFU
+2 Sept 2016
+
+
+```{r}
+filenames <- list.files(path = "C:/Toms/customers/Edex/DeSoto_10/excel/completed/In_action")
+
+for(i in 1:length(filenames)){
+  
+  url <- paste0("C:/Toms/customers/Edex/DeSoto_10/excel/completed/In_action/",filenames[i])
+  
+  basefile <- xmlTreeParse(url)
+  
+  root_enr <- xmlRoot(basefile)
+  
+  basedf_enr <- xmlSApply(root_enr,function(x) xmlSApply(x,xmlValue))
+  
+  
+  
+}
+
+basedf_enr
+
+
+
+```
+

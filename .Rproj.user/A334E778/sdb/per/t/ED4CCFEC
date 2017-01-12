@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1474460219019.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "ED4CCFEC",
+    "lastKnownWriteTime" : 5292976843906638626,
+    "last_content_update" : 1474460219019,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "5pecb9rklt",
+        "caption" : "temp_timeline",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=temp_timeline&cache_key=5pecb9rklt",
+        "displayedObservations" : 238,
+        "environment" : "",
+        "object" : "temp_timeline",
+        "totalObservations" : 238,
+        "variables" : 3
+    },
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

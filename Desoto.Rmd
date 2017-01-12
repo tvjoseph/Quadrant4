@@ -1,0 +1,1710 @@
+---
+title: "Desoto"
+author: "Quadrant-4"
+date: "September 7, 2016"
+output: html_document
+---
+JMJPFU
+
+Let us now start the analysis of the Desoto district data. Will start our analysis with Attendence data.
+
+
+# Step 1 : Reshaping the data set
+
+As a first set the data set has to be reshaped and only the relevant data sets needs to be incorporated. Some of the variables will have to be transformed to dummy variables. Let us first list down the variables and how to transform those variables
+
+1. Date : This variable has to be transformed as a date object from char or levels
+2. StudStateID : This is the unique state ID, which will remain as it is
+3. StateOrg ID : This is the school Id and this can be transformed into a dummy variable with many levels
+4. Local course : As a normal variable
+5. Term : This can be represented as a dummy variable
+6. Attendence Event Type : This can be represented as a dummy variable
+7. Attendence category : This can be represented as a dummy variable
+8. Reason : This can be represented as a normal variable
+
+Will use the caret package for transforming the variables into dummy variables
+
+```{r}
+library(caret)
+
+attned_trans <- stud_attend # taking a back up
+
+# We do not need all variables
+
+attned_trans$ns1.SchoolYear <- attned_trans$ns1.EducationalEnvironment <- NULL
+
+# Lets rename the variables a bit
+
+names(attned_trans)
+
+names(attned_trans) <- c("EventDate","AttendanceEventType","AttendanceEventCategory","AttendanceEventReason","StudentUniqueStateId","StateOrganizationId","LocalCourseCode","Term","ClassPeriodName","Location" )  
+
+# Start creating dummyvariables
+
+# Create a subset where we want to create dummy variables
+
+library(dplyr)
+
+dmy_subset <- attned_trans %>% select(StateOrganizationId,Term,AttendanceEventType,AttendanceEventCategory)
+
+
+# Creating the dummy variables
+dmy <- dummyVars("~.",data=dmy_subset)
+
+# Predicting the dummy variables
+
+attend_transformed <- data.frame(predict(dmy,newdata=attned_trans))
+
+# Renaming the transformed variable
+
+names(attend_transformed) <- c("StateOrganizationId","Fall","Spring","Daily_Attendance","Section_Attendance","Excused_Absence","Tardy","Unexcused_Absence")
+
+# Removing the stateorg id which was not made to a dummy variable as this was numeric
+
+attend_transformed$StateOrganizationId <- NULL
+
+# Adding it to the original dataset
+
+attned_trans <- cbind(attned_trans,attend_transformed)
+
+# Removing some unwanted variables
+
+attned_trans$AttendanceEventType <- attned_trans$AttendanceEventCategory <- attned_trans$Term <- NULL
+
+# Now changing the date variable into a proper date format
+
+attned_trans$EventDate <- as.character(attned_trans$EventDate) # Converting from factor to a charachter format
+
+
+attned_trans$Date <- as.Date(attned_trans$EventDate,format="%m/%d/%Y")
+
+# Removing the Event date variable
+
+attned_trans$EventDate <- NULL
+
+# Creating new variables of Month and day
+
+attned_trans$Month <- format(attned_trans$Date,format = "%B")
+
+attned_trans$Day <- format(attned_trans$Date,format = "%a")
+
+attned_trans$Week <- format(attned_trans$Date,format = "%W")
+
+```
+
+Let us now try and make lots of cuts for the data
+
+# Question 1 : How is the distribution of tardiness accross months
+
+
+Summarise by week day and see the distribution of tardiness. 
+
+
+```{r}
+
+library(dplyr)
+
+attend_week <- attned_trans %>% group_by(Week) %>% summarise(tardsum = sum(Tardy),excuse = sum(Excused_Absence),unexcuse=sum(Unexcused_Absence)) # A consise form of the type of absence
+
+
+```
+
+Let us look at the visualisation of these
+
+```{r}
+library(ggplot2)
+
+q1 <- qplot(Week,tardsum,data=attend_week,geom=c("point","smooth"),color=Week)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+#
+
+q1 <- qplot(Week,excuse,data=attend_week,geom=c("point","smooth"),color=Week)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+#
+
+q1 <- qplot(Week,unexcuse,data=attend_week,geom=c("point"),color=Week)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+A pattern which has emerged is a kind of symmetric distribution of tardiness along the week 33. Week 33 had extremely low levels of tardiness almost 0 and then other two halves have kind of similar patterns.
+
+Week 15 and week 39 had some peaks in tardiness. Do not know for sure if this is significant in any way.
+
+Excuse
+
+Even excuse data shows some similar pattern with a dip for week 33. The highs are for weeks 18 and 49
+
+Unexcuse
+# JMJPFU 8 Sept 2016
+The data for the unexcused absence also shows a similar trend.
+
+However the reason for the trend is the summer break. That is the reason why there is a dip at around week 33. There is also a gap in readings from week 21 to week 33 which denotes a break.
+
+Another observation which needs to be verified is the trend of increasing absence when nearing the break. So from the beginning of the term to when it is about to end all the absence levels shows an increasing trend.
+
+# Attendence trends against the months
+
+Let us now see how the each of these trends fare accross months
+
+```{r}
+
+library(dplyr)
+
+attend_month <- attned_trans %>% group_by(Month) %>% summarise(tardsum = sum(Tardy),excuse = sum(Excused_Absence),unexcuse=sum(Unexcused_Absence)) # A consise form of the type of absence
+
+
+
+# Making the months as factors so that the axes for the plots show in the real order of months rather than alphebetical
+
+attend_month$Month <- factor(attend_month$Month,month.name)
+
+# Plotting graphs
+
+q1 <- qplot(Month,tardsum,data=attend_month,geom=c("point","smooth"),color=Month)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+# Tardy : Month
+The Tardiness shows a zig zag pattern for both the semesters, with peak values in April and October. 
+
+# Questions :
+
+Need to verify why the tardiness is peaking in April and October ? Is this statistically significant ?
+Are there any variations of these accross schools ?
+How do we observe this trend as % of total population ?
+
+```{r}
+#
+
+q1 <- qplot(Month,excuse,data=attend_month,geom=c("point","smooth"),color=Month)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+
+# Excuse : Month
+Excused absence shows a rising trend in the Spring semester and a stable trend in the fall semester. The month of May has the heighest peaks in terms of excused absence
+
+# Questions
+
+Is this trend seen accross different schools ?
+Is this trend statistically significant ?
+How does it fare accross the different reasons across the excused absence ?
+
+```{r}
+
+#
+
+q1 <- qplot(Month,unexcuse,data=attend_month,geom=c("point","smooth"),color=Month)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+
+# Unexcuse Month
+
+Unexcused absence is the maximum in absolute terms accross all the other types of absence. The trend of unexcused absence follows a similar pattern as that of excused absence, with a peak in May. There was also a trend of unexcused absence dipping in the fall semester with it really dipping in December.
+
+# Questions
+
+Why do the excused and unexcused absence peak in May ?
+Why do they dip in December ?
+
+## Attendence and Days
+
+The next questions which we are going to check is whether there is any trend in terms of each of these three type of absence to any particular days in a week. 
+
+
+```{r}
+
+attend_day <- attned_trans %>% group_by(Day) %>% summarise(tardsum = sum(Tardy),excuse = sum(Excused_Absence),unexcuse=sum(Unexcused_Absence))
+
+attend_day$Day <- factor(attend_day$Day)
+
+# Plotting  Tardy graphs
+
+q1 <- qplot(Day,tardsum,data=attend_day,geom=c("point","smooth"),color=Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+Tardiness is found to be heighest on Tuesdays, followed by Thursday and then Wednesday. Monday and Friday has very low level of tardiness.
+
+However the ranges between the tardiness across the days is lower.
+
+Let us look at this observations accross other absence types
+
+```{r}
+
+q1 <- qplot(Day,excuse,data=attend_day,geom=c("point","smooth"),color=Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+```
+
+However excused absence have a different trend. The excused absence is heighest on Fridays followed by Wednesday and thursday. Mondays shows the lowest levels of excused absence. Also Tuesday is the second lower after Monday for excused absence
+
+# Questions
+
+How would the excused absence fare across the various reasons for excused absence ?
+How would it look across the Months ?
+
+```{r}
+
+q1 <- qplot(Day,unexcuse,data=attend_day,geom=c("point","smooth"),color=Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+Unexcused absence on Fridays is way up compared to the rest of the days. Thursday follows. However the range of difference for other days is not much from Thursday.
+
+Will also check the distribution of the total of the absence across the various days of the week
+
+```{r}
+
+attend_day$absence <- attend_day$tardsum + attend_day$excuse + attend_day$unexcuse
+
+q1 <- qplot(Day,absence,data=attend_day,geom=c("point","smooth"),color=Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+So the total absence is heighest on Fridays followed by Thursday and Wednesday. The heighest on Fridays is anyway on expected lines.
+
+
+## Combination of Months and Day
+
+Let us now look at a differetn data point. We will group by months and then by days and do a summary level of the absence based on these groupings
+
+```{r}
+
+attend_mon_day <- attned_trans %>% group_by(Month,Day) %>% summarise(tardsum = sum(Tardy),excuse = sum(Excused_Absence),unexcuse=sum(Unexcused_Absence))
+
+attend_mon_day$Month <- factor(attend_mon_day$Month,month.name)
+
+# Plotting of Tardy with facets as Day
+
+q1 <- qplot(Month,tardsum,data=attend_mon_day,geom=c("point","smooth"),color=Day,facets=.~Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# Plotting of Tardy with no facets
+
+q1 <- qplot(Month,tardsum,data=attend_mon_day,geom=c("point","smooth"),color=Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+Plotting Tardy with no facets gives better visualisation.
+
+One thing to note here is the absence of any general trend accross the months. Was expecting some high values for Tardiness on Tuesday . However tardiness on Tuesdays were the top reason only for months of May , September and December. For other months there is varied signals.
+
+One intersting fact is for Feb and November Tardiness is heighest on Mondays which traditionally showed very low values consistetly
+
+# Questions
+
+What could be the reasons of higher Tardiness on Mondays for the months of Feb and November ?
+What resulted in Tuesday to be the top day where tardiness happened ?
+
+
+
+```{r}
+
+q1 <- qplot(Month,excuse,data=attend_mon_day,geom=c("point","smooth"),color=Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+Excused absence happening on Friday shows a surge in the month of April. For the other months its not that dominating. Only for the months of Jan and Feb does excused absence on Fridays show a predominant trend. All other months excused absence varies across days.
+
+# Questions
+
+What is so special on Fridays of April for showing high level of excused absence ?
+
+```{r}
+
+q1 <- qplot(Month,unexcuse,data=attend_mon_day,geom=c("point"),color=Day) + geom_smooth(method="lm")
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# ANother way of representing this data
+
+
+q1 <- ggplot(attend_mon_day,aes(Month,unexcuse,group=Day,color=Day)) + geom_line()
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# Grouping by month
+
+
+q1 <- ggplot(attend_mon_day,aes(Month,unexcuse,group=Month,color=Day)) + geom_line()
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+Unexcused absence on Friday dominates. Again there is very high spikes of unexcused absence on Fridays for the months of April, May and October. These numbers are higher in proportion to the other days for the same month
+
+
+For the month of March and November the unexcused absence prevelance is highest on Mondays which is little odd. Also for the month of Feb, Monday comes as a close second. ( Is this effect of weekends ?)
+
+
+# Bringing all the reasons together according to months
+
+```{r}
+
+# Combining all of them to a sigle column
+
+attned_trans$reasons <- (attned_trans$Excused_Absence * 2) + (attned_trans$Tardy * 4) + (attned_trans$Unexcused_Absence*6)
+
+# labeling each reson seperately
+attned_trans$reasons[attned_trans$reasons==2] <- "Excused"
+attned_trans$reasons[attned_trans$reasons==4] <- "Tardy"
+attned_trans$reasons[attned_trans$reasons==6] <- "Unexcused"
+# Converting into factors
+
+attned_trans$reasons <- as.factor(attned_trans$reasons)
+
+# Creating another variable for counts
+
+attned_trans$counts <- attned_trans$Excused_Absence + attned_trans$Tardy + attned_trans$Unexcused_Absence
+
+# Creating a newgrouping
+
+attend_grp1 <- attned_trans %>% group_by(Month,Day,reasons) %>% summarise(summ = sum(counts))
+
+attend_grp1$Month <- factor(attend_grp1$Month,month.name)
+
+
+
+```
+
+The above seems to be a good summary level
+
+Lets see some plots
+
+```{r}
+
+# A ggplot - Representation 1
+
+
+q1 <- ggplot(attend_grp1,aes(Month,summ,color=reasons,group=reasons)) + geom_line() + facet_grid(.~Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# A ggplot - Representation 2 , facet as the reason
+
+q2 <- ggplot(attend_grp1,aes(Month,summ,color=Day,group=Day)) + geom_line() + facet_grid(.~reasons)
+
+q2 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+From the two plots we can infer the following 
+
+1. Unexcused absence is the biggest form of absence
+2. Friday remains to be the day where absence seems to be high followed by Monday
+3. Months of April and May and Friday seems to be a day when the Unexcused absence peaks
+4. Absence seems to be higher in the Spring semester compared to Fall.
+
+# Major reasons for absence according to Months
+
+Next let us look at the reasons which are given for the absence according to months first. After that we will do that according to Month and days in a week
+
+```{r}
+
+attend_grp2 <- attned_trans %>% group_by(Month,reasons,AttendanceEventReason) %>% summarise(Counts = sum(counts))
+
+attend_grp2$Month <- factor(attend_grp2$Month,month.name)
+
+# Let us look at the plots
+
+q1 <- ggplot(attend_grp2,aes(Month,Counts,group=AttendanceEventReason,color=AttendanceEventReason)) + geom_line() + facet_grid(reasons~.)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+```
+
+The plots are a little messy. Let us create facets according to the reasons
+
+```{r}
+
+q1 <- ggplot(attend_grp2,aes(Month,Counts,group=AttendanceEventReason,color=reasons)) + geom_line() + facet_grid(.~AttendanceEventReason)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# The above is not that good
+
+
+```
+
+Let us take only the subset of excused, because that has the major reasons.
+
+```{r}
+
+attend_grp3 <- attned_trans %>% group_by(Month,Day,reasons,AttendanceEventReason) %>% summarise(Counts = sum(counts))
+
+attend_grp3$Month <- factor(attend_grp3$Month,month.name)
+
+attend_grp3 <- attend_grp3 %>% filter(reasons=="Excused"&Counts > 500)
+
+# Let us look at the plots
+
+q1 <- ggplot(attend_grp3,aes(Month,Counts,group=AttendanceEventReason,color=AttendanceEventReason)) + geom_line() + facet_grid(.~Day)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+The above looks a lot messy. Let us take only those reasons where the count is more than 500
+
+Even with this the excused reasons are not very promising. One major reason as indicated here is School sponsored Field Trips.
+
+## Introducing Demographics to the equation.
+
+Let us now introduce demographics also into the data set and see what evolves.
+
+```{r}
+
+colnames(Std_demographics)[1] <- "StudentUniqueStateId"
+
+attend_trans <- merge(attned_trans,Std_demographics,by="StudentUniqueStateId")
+
+```
+
+Now let us look at some important questions as far as demographics are concerned
+
+# Relation between Race and attendence
+
+```{r}
+
+attend_grp4 <- attend_trans %>% group_by(Month,reasons,Race) %>% summarise(Counts=sum(counts))
+
+attend_grp4$Month <- factor(attend_grp4$Month,month.name)
+
+# Let us look at the graphs
+
+q1 <- ggplot(attend_grp4,aes(Month,Counts,group=reasons,color=reasons)) + geom_line() + facet_grid(Race~.)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+
+Looking from the perspective of the Race, it is clear that the distribution of attendence very closely follows that of the African-American race. 
+
+# African - American Race and Attendence distributions
+
+Let us zoom into the African-American race and get some insights into other demographics connected with their other details
+
+```{r}
+
+attend_grp5 <- attend_trans %>% filter(Race=="Black - African American") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp6  <- attend_grp5 %>% group_by(Month,reasons,EconomicDisadvantaged) %>% summarise(Counts=sum(counts))
+
+attend_grp6$Month <- factor(attend_grp6$Month,month.name)
+
+# 
+
+q1 <- ggplot(attend_grp6,aes(Month,Counts,group=EconomicDisadvantaged,color=EconomicDisadvantaged)) + geom_line() + facet_grid(.~reasons) # Note the difference in facet. This type of facet is good if we want to
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+So looking at the plot of the African-American race, the absence is predominantly in the economicaly disadvantaged sections of the society. Also the trend follows the general trend where the absence peaks during the months of April and May
+
+# Questions
+1. What are the factors because of which the economically disadvantaged sections of the community result in the high absence from class.
+2. What is happening during the months of April and May ?
+3. Do other races also have a similar distribution as that of the Black Race ?
+
+# Tomorrow
+
+Check the same distribution of what was given to the Blacks to other races and observe the distributions
+
+# JMJPFU 
+9/9/2016
+
+# White Race and Attendence distributions
+
+Let us zoom into the Whites and get some insights into other demographics connected with their other details
+
+```{r}
+library(dplyr)
+
+# White
+
+attend_grp7 <- attend_trans %>% filter(Race=="White") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp8  <- attend_grp7 %>% group_by(Month,reasons,EconomicDisadvantaged) %>% summarise(Counts=sum(counts))
+
+attend_grp8$Month <- factor(attend_grp8$Month,month.name)
+
+# Plotting the same
+
+q2 <- ggplot(attend_grp8,aes(Month,Counts,group=EconomicDisadvantaged,color=EconomicDisadvantaged)) + geom_line() + facet_grid(.~reasons) 
+
+q2 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# American Indian - Alaskan Native
+
+attend_grp7 <- attend_trans %>% filter(Race=="American Indian - Alaskan Native") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp9  <- attend_grp7 %>% group_by(Month,reasons,EconomicDisadvantaged) %>% summarise(Counts=sum(counts))
+
+attend_grp9$Month <- factor(attend_grp9$Month,month.name)
+
+# Plotting the same
+
+q3 <- ggplot(attend_grp9,aes(Month,Counts,group=EconomicDisadvantaged,color=EconomicDisadvantaged)) + geom_line() + facet_grid(.~reasons) 
+
+q3 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+# Asian
+
+attend_grp7 <- attend_trans %>% filter(Race=="Asian") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp10  <- attend_grp7 %>% group_by(Month,reasons,EconomicDisadvantaged) %>% summarise(Counts=sum(counts))
+
+attend_grp10$Month <- factor(attend_grp10$Month,month.name)
+
+# Plotting the same
+
+q4 <- ggplot(attend_grp10,aes(Month,Counts,group=EconomicDisadvantaged,color=EconomicDisadvantaged)) + geom_line() + facet_grid(.~reasons) 
+
+q4 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# "Native Hawaiian - Pacific Islander"
+
+attend_grp7 <- attend_trans %>% filter(Race=="Native Hawaiian - Pacific Islander") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp11  <- attend_grp7 %>% group_by(Month,reasons,EconomicDisadvantaged) %>% summarise(Counts=sum(counts))
+
+attend_grp11$Month <- factor(attend_grp11$Month,month.name)
+
+# Plotting the same
+
+q5 <- ggplot(attend_grp11,aes(Month,Counts,group=EconomicDisadvantaged,color=EconomicDisadvantaged)) + geom_line() + facet_grid(.~reasons) 
+
+q5 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+```
+
+
+
+# Observations of the absence with respect to races
+
+1. For black population, all kinds of absence are more prevalent in the economically disadvantaged children. The distribution of absence for blacks follows the normally found pattern. The gap between the economically disadvantaged and economically advantaged in terms of absence is pretty high
+
+2. For white population, the distribution of absence follows the same pattern as that of the usual trend. However one difference is that the prevelance of absence is not much different between the economically disadvantaged and advantaged kids. Another intersting fact is the prevelance of excused absence is more in terms of economically advantaged kids. Does it mean that economically advantaged kids have parents who are more educated and therefore follow rules ??? Another observation among whites is, the trend in excused absence flips from economically advantaged to the disadvanted when we move from the spring semester to the fall semester. So advantaged sections are taking more excused leave in the spring sessions however it is the disadvantaged sections which does this in the fall semester. Does this have to do with the economic status and the propensity to take vacations when the prices are higher / lower ?
+
+3. The story for the Native american and absence follows the same trend as that of the black american. With the propensity to take leave more prevelant among the economically disadvantaged than the advantaged. The gap of all categories of absence is very high among the disadvantaged rather than the advantaged sections.
+
+4. Analysis of the "Asian" race has so far shown a different story from what we have seen so far. The trends show some of the general trends of absence during the months of April and May and the other peaks in October. However one interesting fact is the trend of taking unexcused absence is kind of equally prevelant for both economic strata. Also the propensity to take unexcused absence is more for the economically advantaged people in the month of October than the disadvantaged.
+
+5. The Hawaiian race also shows a very different pattern. In this race the economicaly advantaged are found to take more unexcused absence than the other group. The difference of leave by this group for the month of April is found to be much higher in comparison with the other group. 
+
+
+# Race & School Food eligibility
+
+Let us look at another angle. Let us look at the absence and eligibility for free food
+
+
+
+
+
+
+```{r}
+
+# African Americans
+
+attend_grp5 <- attend_trans %>% filter(Race=="Black - African American") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp6  <- attend_grp5 %>% group_by(Month,reasons,SchoolFoodServicesEligibility) %>% summarise(Counts=sum(counts))
+
+attend_grp6$Month <- factor(attend_grp6$Month,month.name)
+
+# 
+
+q6 <- ggplot(attend_grp6,aes(Month,Counts,group=SchoolFoodServicesEligibility,color=SchoolFoodServicesEligibility)) + geom_line() + facet_grid(.~reasons) # Note the difference in facet. This type of facet is good if we want to
+
+q6 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# White
+
+attend_grp7 <- attend_trans %>% filter(Race=="White") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp8  <- attend_grp7 %>% group_by(Month,reasons,SchoolFoodServicesEligibility) %>% summarise(Counts=sum(counts))
+
+attend_grp8$Month <- factor(attend_grp8$Month,month.name)
+
+# Plotting the same
+
+q7 <- ggplot(attend_grp8,aes(Month,Counts,group=SchoolFoodServicesEligibility,color=SchoolFoodServicesEligibility)) + geom_line() + facet_grid(.~reasons) 
+
+q7 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# American Indian - Alaskan Native
+
+attend_grp7 <- attend_trans %>% filter(Race=="American Indian - Alaskan Native") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp9  <- attend_grp7 %>% group_by(Month,reasons,SchoolFoodServicesEligibility) %>% summarise(Counts=sum(counts))
+
+attend_grp9$Month <- factor(attend_grp9$Month,month.name)
+
+# Plotting the same
+
+q8 <- ggplot(attend_grp9,aes(Month,Counts,group=SchoolFoodServicesEligibility,color=SchoolFoodServicesEligibility)) + geom_line() + facet_grid(.~reasons) 
+
+q8 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+# Asian
+
+attend_grp7 <- attend_trans %>% filter(Race=="Asian") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp10  <- attend_grp7 %>% group_by(Month,reasons,SchoolFoodServicesEligibility) %>% summarise(Counts=sum(counts))
+
+attend_grp10$Month <- factor(attend_grp10$Month,month.name)
+
+# Plotting the same
+
+q9 <- ggplot(attend_grp10,aes(Month,Counts,group=SchoolFoodServicesEligibility,color=SchoolFoodServicesEligibility)) + geom_line() + facet_grid(.~reasons) 
+
+q9 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# "Native Hawaiian - Pacific Islander"
+
+attend_grp7 <- attend_trans %>% filter(Race=="Native Hawaiian - Pacific Islander") %>% select(Month,Day,Week,counts,reasons,EconomicDisadvantaged,SchoolFoodServicesEligibility)
+
+attend_grp11  <- attend_grp7 %>% group_by(Month,reasons,SchoolFoodServicesEligibility) %>% summarise(Counts=sum(counts))
+
+attend_grp11$Month <- factor(attend_grp11$Month,month.name)
+
+# Plotting the same
+
+q10 <- ggplot(attend_grp11,aes(Month,Counts,group=SchoolFoodServicesEligibility,color=SchoolFoodServicesEligibility)) + geom_line() + facet_grid(.~reasons) 
+
+q10 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+# Observations for absence, Food service eligility and 
+
+1. For African Americans, all types of absence were heighest for students availing Free food. The second category being people who pay full priced food followed by students with reduced prices. Thats pretty interesting charachteristics. Need to check on the following,
+
+a. Whether the absence was for a period or for the complete session ?
+
+2. For whites, the distribution is similar to the patterns found for the economical cross sections. With students who are not availing free food taking more excused and unexcused absence during the spring semester and the ones with Free food eligibility leading in the fall semester.
+
+3. Even for native american, the distribution is the same as that for the economic section. I think there is correlation between the economic condition and the food eligibility conditions
+
+4. For Asians, the distribution is interesting. The peaks for the full price and Free is the same. Also there is a similarity between the unexcused leaves taken for Full price food students and the Econimically advantaged, where they tend to take more unexcused leaves during the month of Oct.
+
+5. For Hawaiian race, the students who pay full price top the list for taking unexcused leaves during the spring semester. 
+
+One general observation is that students who avail food at reduced prices are not in the foremost for taking leaves compared to others. Is this because their absolute numbers are less ? Need to evaluate this phenomenon further.
+
+
+
+
+# Next analyses: Attendence types
+
+1. Next let us look at the attendence type and its trends i.e whether it is section attendence or daily attendence. 
+How does these trends look like ?
+If it is section attendence, then which sections are the most frequent ?
+Are there any specific subjects where people are absent ?
+
+Also need to look at some clustering exercises and association rules exercises. Need to think deep into what makes sense for this dataset
+
+# JMJPFU
+12 Sept 2016
+
+Creating a new variable
+
+```{r}
+
+# Creating a new variable for attendence type
+
+attend_trans$attendtype <- attend_trans$Daily_Attendance * 2 +  attend_trans$Section_Attendance * 4
+
+# Renaming section types as section
+
+attend_trans$attendtype[attend_trans$attendtype == 4] <- "Section"
+
+# Renaming daily types as daily
+
+attend_trans$attendtype[attend_trans$attendtype == 2] <- "Daily"
+
+table(attend_trans$attendtype) 
+
+
+
+```
+
+From the table it can be seen that almost 85% of the absence is section absence. Which makes the problem more interesting. Some questions that comes to my mind are the following
+
+1. Which sections are the most frequent in terms of non attendence ?
+2. Does it have anything to do with the teacher ?
+3. Or the non attendence is mainly due to the subject itself ?
+
+# Initial checks
+
+Let us check which are the classes or sections available for the daily attendence
+
+```{r}
+
+unique(attend_trans %>% filter(attendtype=="Section") %>% select(ClassPeriodName))
+
+
+```
+
+So from the above check it can be seen that not daily attendence corresponds to only one ClassPeriodName == TS. 
+
+Let us make the section attendence data set as seperate and then verify all these above trends which we observed
+
+
+
+```{r}
+
+attend_grp10 <- attend_trans %>% filter(attendtype=="Section") %>% select(Month,Day,Week,counts,reasons,Race,EconomicDisadvantaged,ClassPeriodName)
+
+attend_grp11 <- attend_grp10 %>% group_by(Month,ClassPeriodName) %>% summarise(count = sum(counts))
+
+attend_grp11$Month <- factor(attend_grp11$Month,month.name)
+
+# Plotting
+
+q11 <- ggplot(attend_grp11,aes(Month,count,group=ClassPeriodName,color=ClassPeriodName)) + geom_line()
+
+q11 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+te <- attend_grp11 %>% filter(Month == "May") %>% arrange(desc(count))
+
+
+
+```
+
+Some of the major periods where the maximum absence happens are the following
+
+2,1,5,3,4,7.
+
+Maybe month wise distribution of this dosent make much sense. Let us do this distribution by reasons
+
+```{r}
+
+
+attend_grp11 <- attend_grp10 %>% group_by(ClassPeriodName,reasons) %>% summarise(count = sum(counts))
+
+te <- attend_grp10 %>% group_by(ClassPeriodName) %>% summarise(count = sum(counts))
+
+# Plotting
+
+q12 <- ggplot(attend_grp11,aes(ClassPeriodName,count,group=reasons,color=reasons)) + geom_line()
+
+q12 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+q13 <- ggplot(te,aes(ClassPeriodName,count)) + geom_point()
+
+q13 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+# Race v/s Period missed
+
+Let us look at another perspective. If there are any variations with respect to races and the periods missed
+
+```{r}
+
+
+attend_grp11 <- attend_grp10 %>% group_by(ClassPeriodName,Race,reasons) %>% summarise(count = sum(counts))
+
+
+
+# Plotting
+
+q14 <- ggplot(attend_grp11,aes(ClassPeriodName,count,group=reasons,color=reasons)) + geom_line() + facet_grid(Race~.)
+
+q14 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+q13 <- ggplot(te,aes(ClassPeriodName,count)) + geom_point()
+
+q13 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+
+```
+
+
+# Metrics accross Schools in the district
+
+Let us now look at various metrics accross schools in the districts. Some of the key metrics which we can look at are
+
+1. Attendence reasons accross schools across months
+2. Race distribution accross schools accross months
+
+
+```{r}
+
+
+attend_grp4 <- attend_trans %>% group_by(StateOrganizationId,Month,reasons) %>% summarise(Counts=sum(counts))
+
+attend_grp4$Month <- factor(attend_grp4$Month,month.name)
+
+# Let us look at the graphs
+
+q1 <- ggplot(attend_grp4,aes(Month,Counts,group=reasons,color=reasons)) + geom_line() + facet_grid(.~StateOrganizationId)
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+The above shows the distribution of the attendence with respect to various schools. 
+
+# Normalisation of the data
+
+Now all these analysis will make more sense once we normalise the data with respect to the actual population of the school.
+
+For doing this let us first take the enrollment data of the school and then create a new table of counts with respect to overall population and also race wise population. Here is the idea
+
+1. Population normalisation - Create a new count called the normalised Population count. This is the existing count divided by the population of the school
+
+2. Race count : Create a new count, where each of the counts is normalised by the population of the race for that school.
+
+
+For this let us first read in the enrollment data and then create tables of each school according to the races and then create the normalised counts.
+
+
+
+```{r}
+
+# Reading in enrollment data
+
+Student_school_Association <- read.csv("C:/Toms/customers/Edex/DeSotoISD/Student_school_Association.csv")
+
+colnames(Student_school_Association)[1] <- "StudentUniqueStateId"
+
+# Bringing in the race details to this data set
+
+stud_race_map <- attend_trans %>% select(StudentUniqueStateId,Race)
+
+stud_race_map <- NULL # I later changed this to null to remove this data frame
+
+Student_newmap <- merge(Student_school_Association,stud_race_map,by="StudentUniqueStateId",all.y = FALSE)
+
+# Merge not working as expected. Will use  a For loop
+
+Student_school_Association$Race <- NA
+
+for(i in 236:nrow(Student_school_Association)){
+  
+  tempid <- paste(Student_school_Association[i,1])
+  temprac <- Std_demographics %>% filter(StudentUniqueStateId==tempid) %>% select(Race)
+  
+  Student_school_Association[i,8] <- paste(temprac[1,1])
+  print(i)
+  
+}
+
+# Now to create a dummy variable for Race
+
+library(caret)
+
+dmy_subset <- Student_school_Association %>% select(SchoolId,Race)
+
+
+# Creating the dummy variables
+dmy <- dummyVars("~.",data=dmy_subset)
+
+# Predicting the dummy variables
+
+std_association <- data.frame(predict(dmy,newdata=Student_school_Association))
+
+# Now to summarise the data
+
+std_association <- std_association %>% group_by(SchoolId) %>% summarise(Alaskan = sum(RaceAmerican.Indian...Alaskan.Native),Black = sum(RaceBlack...African.American),White = sum(RaceWhite),Asian=sum(RaceAsian),Hawaii = sum(RaceNative.Hawaiian...Pacific.Islander))
+
+# Find total population
+
+std_association$Total <- std_association$Alaskan + std_association$Black + std_association$White + std_association$Asian + std_association$Hawaii
+
+
+
+
+```
+
+Now that we have the tables, let us make the normalised counts
+
+```{r}
+
+# Creating new variables
+
+attend_trans$normrace <- NA
+
+attend_trans$normpop <- NA
+
+# Creating teh for loop
+
+for(i in 1:nrow(attend_trans)){
+  
+  tempid <- paste(attend_trans[i,3])
+  temptab <- std_association %>% filter(SchoolId==tempid)
+  temprace <- paste(attend_trans[i,21])
+  
+  # Updating the population normalisation
+  
+  attend_trans[i,31] <- attend_trans[i,19]/temptab$Total
+  
+  # Updating the race information
+  
+  if(temprace == "Black - African American"){attend_trans[i,30] <- attend_trans[i,19]/temptab$Black }
+  else if(temprace == "American Indian - Alaskan Native" ){attend_trans[i,30] <- attend_trans[i,19]/temptab$Alaskan }
+  else if(temprace == "White" ){attend_trans[i,30] <- attend_trans[i,19]/temptab$White }
+  else if(temprace == "Asian"){attend_trans[i,30] <- attend_trans[i,19]/temptab$Asian }
+  else if(temprace == "Native Hawaiian - Pacific Islander"){attend_trans[i,30] <- attend_trans[i,19]/temptab$Hawaii }
+  
+  print(i)
+  
+  
+}
+
+```
+
+# JMJPFU
+13-9-2016
+
+Now that we have created the normalised data set, let us look at some data points where there is infinity
+
+
+
+
+```{r}
+library(dplyr)
+
+attend_sch1 <- attend_trans %>% filter(normrace == Inf)
+
+# Two schools are found where the Hawaaii race is found to be 0. Lets verify
+
+te1 <- Student_school_Association %>% filter(SchoolId %in% c("57906008","57906103"))
+
+```
+
+Since there are only 29 records, we can as well eliminate those cases and proceed with the rest.
+
+```{r}
+
+attend_trans1 <- attend_trans[attend_trans$normrace != Inf,] # Removing all the Inf terms
+
+attend_trans <- attend_trans1 # Loading to the original data set
+
+attend_trans1 <- NULL # Removing the new variable
+
+```
+
+# Change of Direction
+
+Now that we have seen some level of data. Let me combine some data sets and create something to look at data indicating Students and drop out
+
+Data Sets to be combined
+
+1. Attendence data
+2. Grade 
+3. Discipline Data
+4. Drop out ??
+
+Maybe, we can start by taking students in the discipline list and get some information about the student from a timeline perspective. 
+
+# Reading in the discipline data
+
+```{r}
+
+# Incident-Student Association
+Stud_Disc_InAsc_Master <- read.csv("C:/Toms/customers/Edex/DeSotoISD-01/Stud_Disc_InAsc_Master.csv")
+# Incident_Master
+Stud_Disc_Act_Master <- read.csv("C:/Toms/customers/Edex/DeSotoISD-01/Stud_Disc_Act_Master.csv")
+# Discipline Indicator
+Discipline_Indicator_Master <- read.csv("C:/Toms/customers/Edex/DeSotoISD-01/Discipline_Indicator_Master.csv")
+
+```
+
+Let us look at the students who frequent most in these cases of indiscipline.
+
+
+
+```{r}
+
+# Creating a table of students who frequent in the table
+
+tab1 <- data.frame(table(Stud_Disc_InAsc_Master$StudentUniqueId))
+
+# Sorting according to frequency
+
+tab1 <- tab1 %>% arrange(desc(Freq))
+
+# Take a sample of the case
+
+sampid <- paste(tab1[1,1])
+
+
+```
+
+Now we will consolidate all the data sets for this person
+
+```{r}
+
+# Taking a sample for the student under consideration
+
+samp_discipline <- Stud_Disc_InAsc_Master %>% filter(StudentUniqueId==sampid)
+
+tab2 <- Stud_Disc_Act_Master %>% filter(StudentUniqueId==sampid)
+
+# Merging data
+
+samp_discipline <- merge(samp_discipline,Discipline_Indicator_Master,by="IncidentIdentifier",all.x=TRUE)
+
+# Converting the date to a charachter object and then making a new date format
+
+samp_discipline$IncidentDate <- as.Date(as.character(samp_discipline$IncidentDate))
+
+samp_discipline$Month <- format(samp_discipline$IncidentDate,"%B")
+
+samp_discipline$Day <- format(samp_discipline$IncidentDate,"%a")
+
+# Getting the attendence related data for the same individual
+
+samp_attendence <- attend_trans %>% filter(StudentUniqueStateId==sampid) # Not a single incidence of absenteeism
+
+# Getting the grade related data
+
+samp_grade <- stud_grade %>% filter(ns1.StudentUniqueStateId==sampid)
+
+
+```
+
+Look at what this act of indiscipline mean.
+Look at dates in which the indiscipline happened
+Bring in attendence data for this student
+bring in grade related info for this student
+
+# Creating a New data set
+
+Now let us get into creating a new data set which is a timline in the school year of a student. 
+
+```{r}
+
+# Getting a variable with dates
+
+samp_dates <- data.frame(seq(as.Date("2015-09-01"), as.Date("2016-06-30"),by="day"))
+
+names(samp_dates) <- "School_Days"
+
+samp_dates$days <- format(samp_dates$School_Days,"%a")
+
+samp_dates <- samp_dates[samp_dates$days != "Sat",] # Removing Saturdays
+
+samp_dates <- samp_dates[samp_dates$days != "Sun",] # Removing Sundays
+
+# Now to start building the date set
+
+Student_timeline <- samp_dates
+
+colnames(Student_timeline)[1] <- "Date"
+
+# Take only relevant columns in Samp_attendence
+
+samp_attendence <- samp_attendence %>% select(StudentUniqueStateId,AttendanceEventReason,StateOrganizationId,LocalCourseCode,ClassPeriodName,Location,Date,Month,Day,Week,reasons,counts,HispanicLatinoEthnicity,Race,EconomicDisadvantaged,SchoolFoodServicesEligibility,normrace,normpop)
+
+
+# First merging the attendence data
+
+Student_timeline <- merge(Student_timeline,samp_attendence,by="Date",all=TRUE)
+
+########################################################### Exclude ######################################################
+
+# In - order to get one record per day, we need to re-hash the data again. We can try to make them dummy variables
+
+samp_attendence_cut1 <- samp_attendence %>% select(Date,reasons,LocalCourseCode)
+
+# Making dummy variables
+
+library(caret)
+
+# Creating the dummy variables
+dmy <- dummyVars("~.",data=samp_attendence_cut1)
+
+samp_dumm1 <- data.frame(predict(dmy,newdata = samp_attendence_cut1))
+
+# Predicting the dummy variables
+
+std_association <- data.frame(predict(dmy,newdata=Student_school_Association))
+############################################################################################################################
+
+```
+
+The steps of having only one record can be eliminated. We will go with multiple records for the same day. Otherwise the data set will become very complex.
+
+Now to add the discipline data and the grade data into the same data set after cleaning up the existing data set
+
+```{r}
+# Cleaning up the discipline data
+samp_discipline <- samp_discipline %>% select(SchoolName,BehaviorDetailedDescription,IncidentDate)
+colnames(samp_discipline)[3] <- "Date"
+# Need to create a consolidated score for each type of offence
+
+Discipline_template <- data.frame(unique(Stud_Disc_InAsc_Master$BehaviorDetailedDescription))
+names(Discipline_template) <- colnames(samp_discipline[2])
+
+samp_discipline <- merge(samp_discipline,Discipline_template,by="BehaviorDetailedDescription",all.x=TRUE)
+
+
+# Merging the data sets
+
+Student_timeline <- merge(Student_timeline,samp_discipline,by="Date",all=TRUE)
+
+
+```
+
+Tomorrow, we need to bring the grade data into the set and then analyse the data further
+
+# JMJPFU
+14-Sept-2016
+
+To handle grade data, we will define some dates which pertains to the semester/mid semester period for the grades. 
+
+```{r}
+
+# Getting the basic dates
+
+grad_dates <- data.frame(Dates=c("2015-10-13","2015-11-10","2015-12-16","2016-02-04","2016-03-07","2016-04-07","2016-06-10"))
+
+# Getting the class periods
+
+unique(stud_grade$ns1.ClassPeriodName) # To get unique combination of grades
+
+grad_dates[,2:28] <- NA # Defining the rest 27 variables pertaining to grades
+
+colnames(grad_dates)[1] <- "Date"
+
+colnames(grad_dates)[2:28] <- c("01","02","03","04","05","06","07","08","09","10","11","12","13","23","26","28","29","RA", "RB","EA","EB","MA","MB","AS","BS","SA","SB") 
+
+# Defining a Function for extracting the data and inserting the grades
+
+get_grade <- function(samp_grade,grad_dates){
+  
+  for(i in 1:nrow(samp_grade)){
+  
+  tempdate <- samp_grade[i,10] # Semester grade period
+  tempper <- samp_grade[i,8] # Class period
+  tempgrade <- samp_grade[i,1] # Grades obtained
+  
+  if(tempdate == "First Nine Weeks"){
+    
+    if(tempper=="01"||tempper=="1"){grad_dates[1,2] <- paste(tempgrade) }
+    else if(tempper=="02"||tempper=="2"){grad_dates[1,3] <- paste(tempgrade) }
+    else if(tempper=="03"||tempper=="3"){grad_dates[1,4] <- paste(tempgrade) }
+    else if(tempper=="04"||tempper=="4"){grad_dates[1,5] <- paste(tempgrade) }
+    else if(tempper=="05"||tempper=="5"){grad_dates[1,6] <- paste(tempgrade) }
+    else if(tempper=="06"||tempper=="6"){grad_dates[1,7] <- paste(tempgrade) }
+    else if(tempper=="07"||tempper=="7"){grad_dates[1,8] <- paste(tempgrade) }
+    else if(tempper=="08"||tempper=="8"){grad_dates[1,9] <- paste(tempgrade) }
+    else if(tempper=="09"||tempper=="9"){grad_dates[1,10] <- paste(tempgrade) }
+    else if(tempper=="10"){grad_dates[1,11] <- paste(tempgrade) }
+    else if(tempper=="11"){grad_dates[1,12] <- paste(tempgrade) }
+    else if(tempper=="12"){grad_dates[1,13] <- paste(tempgrade) }
+    else if(tempper=="13"){grad_dates[1,14] <- paste(tempgrade) }
+    else if(tempper=="23"){grad_dates[1,15] <- paste(tempgrade) }
+    else if(tempper=="26"){grad_dates[1,16] <- paste(tempgrade) }
+    else if(tempper=="28"){grad_dates[1,17] <- paste(tempgrade) }
+    else if(tempper=="29"){grad_dates[1,18] <- paste(tempgrade) }
+    else if(tempper=="RA"){grad_dates[1,19] <- paste(tempgrade) }
+    else if(tempper=="RB"){grad_dates[1,20] <- paste(tempgrade) }
+    else if(tempper=="EA"){grad_dates[1,21] <- paste(tempgrade) }
+    else if(tempper=="EB"){grad_dates[1,22] <- paste(tempgrade) }
+    else if(tempper=="MA"){grad_dates[1,23] <- paste(tempgrade) }
+    else if(tempper=="MB"){grad_dates[1,24] <- paste(tempgrade) }
+    else if(tempper=="AS"){grad_dates[1,25] <- paste(tempgrade) }
+    else if(tempper=="BS"){grad_dates[1,26] <- paste(tempgrade) }
+    else if(tempper=="SA"){grad_dates[1,27] <- paste(tempgrade) }
+    else if(tempper=="SB"){grad_dates[1,28] <- paste(tempgrade) }
+    
+  } # End of if loop for First nine weeks
+  
+  
+  else if(tempdate == "Second Nine Weeks"){
+    
+    if(tempper=="01"||tempper=="1"){grad_dates[2,2] <- paste(tempgrade) }
+    else if(tempper=="02"||tempper=="2"){grad_dates[2,3] <- paste(tempgrade) }
+    else if(tempper=="03"||tempper=="3"){grad_dates[2,4] <- paste(tempgrade) }
+    else if(tempper=="04"||tempper=="4"){grad_dates[2,5] <- paste(tempgrade) }
+    else if(tempper=="05"||tempper=="5"){grad_dates[2,6] <- paste(tempgrade) }
+    else if(tempper=="06"||tempper=="6"){grad_dates[2,7] <- paste(tempgrade) }
+    else if(tempper=="07"||tempper=="7"){grad_dates[2,8] <- paste(tempgrade) }
+    else if(tempper=="08"||tempper=="8"){grad_dates[2,9] <- paste(tempgrade) }
+    else if(tempper=="09"||tempper=="9"){grad_dates[2,10] <- paste(tempgrade) }
+    else if(tempper=="10"){grad_dates[2,11] <- paste(tempgrade) }
+    else if(tempper=="11"){grad_dates[2,12] <- paste(tempgrade) }
+    else if(tempper=="12"){grad_dates[2,13] <- paste(tempgrade) }
+    else if(tempper=="13"){grad_dates[2,14] <- paste(tempgrade) }
+    else if(tempper=="23"){grad_dates[2,15] <- paste(tempgrade) }
+    else if(tempper=="26"){grad_dates[2,16] <- paste(tempgrade) }
+    else if(tempper=="28"){grad_dates[2,17] <- paste(tempgrade) }
+    else if(tempper=="29"){grad_dates[2,18] <- paste(tempgrade) }
+    else if(tempper=="RA"){grad_dates[2,19] <- paste(tempgrade) }
+    else if(tempper=="RB"){grad_dates[2,20] <- paste(tempgrade) }
+    else if(tempper=="EA"){grad_dates[2,21] <- paste(tempgrade) }
+    else if(tempper=="EB"){grad_dates[2,22] <- paste(tempgrade) }
+    else if(tempper=="MA"){grad_dates[2,23] <- paste(tempgrade) }
+    else if(tempper=="MB"){grad_dates[2,24] <- paste(tempgrade) }
+    else if(tempper=="AS"){grad_dates[2,25] <- paste(tempgrade) }
+    else if(tempper=="BS"){grad_dates[2,26] <- paste(tempgrade) }
+    else if(tempper=="SA"){grad_dates[2,27] <- paste(tempgrade) }
+    else if(tempper=="SB"){grad_dates[2,28] <- paste(tempgrade) }
+    
+  } # End of if loop for Second nine weeks
+  
+  else if(tempdate == "First Semester"){
+    
+    if(tempper=="01"||tempper=="1"){grad_dates[3,2] <- paste(tempgrade) }
+    else if(tempper=="02"||tempper=="2"){grad_dates[3,3] <- paste(tempgrade) }
+    else if(tempper=="03"||tempper=="3"){grad_dates[3,4] <- paste(tempgrade) }
+    else if(tempper=="04"||tempper=="4"){grad_dates[3,5] <- paste(tempgrade) }
+    else if(tempper=="05"||tempper=="5"){grad_dates[3,6] <- paste(tempgrade) }
+    else if(tempper=="06"||tempper=="6"){grad_dates[3,7] <- paste(tempgrade) }
+    else if(tempper=="07"||tempper=="7"){grad_dates[3,8] <- paste(tempgrade) }
+    else if(tempper=="08"||tempper=="8"){grad_dates[3,9] <- paste(tempgrade) }
+    else if(tempper=="09"||tempper=="9"){grad_dates[3,10] <- paste(tempgrade) }
+    else if(tempper=="10"){grad_dates[3,11] <- paste(tempgrade) }
+    else if(tempper=="11"){grad_dates[3,12] <- paste(tempgrade) }
+    else if(tempper=="12"){grad_dates[3,13] <- paste(tempgrade) }
+    else if(tempper=="13"){grad_dates[3,14] <- paste(tempgrade) }
+    else if(tempper=="23"){grad_dates[3,15] <- paste(tempgrade) }
+    else if(tempper=="26"){grad_dates[3,16] <- paste(tempgrade) }
+    else if(tempper=="28"){grad_dates[3,17] <- paste(tempgrade) }
+    else if(tempper=="29"){grad_dates[3,18] <- paste(tempgrade) }
+    else if(tempper=="RA"){grad_dates[3,19] <- paste(tempgrade) }
+    else if(tempper=="RB"){grad_dates[3,20] <- paste(tempgrade) }
+    else if(tempper=="EA"){grad_dates[3,21] <- paste(tempgrade) }
+    else if(tempper=="EB"){grad_dates[3,22] <- paste(tempgrade) }
+    else if(tempper=="MA"){grad_dates[3,23] <- paste(tempgrade) }
+    else if(tempper=="MB"){grad_dates[3,24] <- paste(tempgrade) }
+    else if(tempper=="AS"){grad_dates[3,25] <- paste(tempgrade) }
+    else if(tempper=="BS"){grad_dates[3,26] <- paste(tempgrade) }
+    else if(tempper=="SA"){grad_dates[3,27] <- paste(tempgrade) }
+    else if(tempper=="SB"){grad_dates[3,28] <- paste(tempgrade) }
+    
+  } # End of if loop for First Semester
+  
+  else if(tempdate == "Third Nine Weeks"){
+    
+    if(tempper=="01"||tempper=="1"){grad_dates[4,2] <- paste(tempgrade) }
+    else if(tempper=="02"||tempper=="2"){grad_dates[4,3] <- paste(tempgrade) }
+    else if(tempper=="03"||tempper=="3"){grad_dates[4,4] <- paste(tempgrade) }
+    else if(tempper=="04"||tempper=="4"){grad_dates[4,5] <- paste(tempgrade) }
+    else if(tempper=="05"||tempper=="5"){grad_dates[4,6] <- paste(tempgrade) }
+    else if(tempper=="06"||tempper=="6"){grad_dates[4,7] <- paste(tempgrade) }
+    else if(tempper=="07"||tempper=="7"){grad_dates[4,8] <- paste(tempgrade) }
+    else if(tempper=="08"||tempper=="8"){grad_dates[4,9] <- paste(tempgrade) }
+    else if(tempper=="09"||tempper=="9"){grad_dates[4,10] <- paste(tempgrade) }
+    else if(tempper=="10"){grad_dates[4,11] <- paste(tempgrade) }
+    else if(tempper=="11"){grad_dates[4,12] <- paste(tempgrade) }
+    else if(tempper=="12"){grad_dates[4,13] <- paste(tempgrade) }
+    else if(tempper=="13"){grad_dates[4,14] <- paste(tempgrade) }
+    else if(tempper=="23"){grad_dates[4,15] <- paste(tempgrade) }
+    else if(tempper=="26"){grad_dates[4,16] <- paste(tempgrade) }
+    else if(tempper=="28"){grad_dates[4,17] <- paste(tempgrade) }
+    else if(tempper=="29"){grad_dates[4,18] <- paste(tempgrade) }
+    else if(tempper=="RA"){grad_dates[4,19] <- paste(tempgrade) }
+    else if(tempper=="RB"){grad_dates[4,20] <- paste(tempgrade) }
+    else if(tempper=="EA"){grad_dates[4,21] <- paste(tempgrade) }
+    else if(tempper=="EB"){grad_dates[4,22] <- paste(tempgrade) }
+    else if(tempper=="MA"){grad_dates[4,23] <- paste(tempgrade) }
+    else if(tempper=="MB"){grad_dates[4,24] <- paste(tempgrade) }
+    else if(tempper=="AS"){grad_dates[4,25] <- paste(tempgrade) }
+    else if(tempper=="BS"){grad_dates[4,26] <- paste(tempgrade) }
+    else if(tempper=="SA"){grad_dates[4,27] <- paste(tempgrade) }
+    else if(tempper=="SB"){grad_dates[4,28] <- paste(tempgrade) }
+    
+  } # End of if loop for Third nine weeks
+  
+  else if(tempdate == "Second Semester"){
+    
+    if(tempper=="01"||tempper=="1"){grad_dates[5,2] <- paste(tempgrade) }
+    else if(tempper=="02"||tempper=="2"){grad_dates[5,3] <- paste(tempgrade) }
+    else if(tempper=="03"||tempper=="3"){grad_dates[5,4] <- paste(tempgrade) }
+    else if(tempper=="04"||tempper=="4"){grad_dates[5,5] <- paste(tempgrade) }
+    else if(tempper=="05"||tempper=="5"){grad_dates[5,6] <- paste(tempgrade) }
+    else if(tempper=="06"||tempper=="6"){grad_dates[5,7] <- paste(tempgrade) }
+    else if(tempper=="07"||tempper=="7"){grad_dates[5,8] <- paste(tempgrade) }
+    else if(tempper=="08"||tempper=="8"){grad_dates[5,9] <- paste(tempgrade) }
+    else if(tempper=="09"||tempper=="9"){grad_dates[5,10] <- paste(tempgrade) }
+    else if(tempper=="10"){grad_dates[5,11] <- paste(tempgrade) }
+    else if(tempper=="11"){grad_dates[5,12] <- paste(tempgrade) }
+    else if(tempper=="12"){grad_dates[5,13] <- paste(tempgrade) }
+    else if(tempper=="13"){grad_dates[5,14] <- paste(tempgrade) }
+    else if(tempper=="23"){grad_dates[5,15] <- paste(tempgrade) }
+    else if(tempper=="26"){grad_dates[5,16] <- paste(tempgrade) }
+    else if(tempper=="28"){grad_dates[5,17] <- paste(tempgrade) }
+    else if(tempper=="29"){grad_dates[5,18] <- paste(tempgrade) }
+    else if(tempper=="RA"){grad_dates[5,19] <- paste(tempgrade) }
+    else if(tempper=="RB"){grad_dates[5,20] <- paste(tempgrade) }
+    else if(tempper=="EA"){grad_dates[5,21] <- paste(tempgrade) }
+    else if(tempper=="EB"){grad_dates[5,22] <- paste(tempgrade) }
+    else if(tempper=="MA"){grad_dates[5,23] <- paste(tempgrade) }
+    else if(tempper=="MB"){grad_dates[5,24] <- paste(tempgrade) }
+    else if(tempper=="AS"){grad_dates[5,25] <- paste(tempgrade) }
+    else if(tempper=="BS"){grad_dates[5,26] <- paste(tempgrade) }
+    else if(tempper=="SA"){grad_dates[5,27] <- paste(tempgrade) }
+    else if(tempper=="SB"){grad_dates[5,28] <- paste(tempgrade) }
+    
+  } # End of if loop for Second Semester
+  
+  else if(tempdate == "Fourth Nine Weeks"){
+    
+    if(tempper=="01"||tempper=="1"){grad_dates[6,2] <- paste(tempgrade) }
+    else if(tempper=="02"||tempper=="2"){grad_dates[6,3] <- paste(tempgrade) }
+    else if(tempper=="03"||tempper=="3"){grad_dates[6,4] <- paste(tempgrade) }
+    else if(tempper=="04"||tempper=="4"){grad_dates[6,5] <- paste(tempgrade) }
+    else if(tempper=="05"||tempper=="5"){grad_dates[6,6] <- paste(tempgrade) }
+    else if(tempper=="06"||tempper=="6"){grad_dates[6,7] <- paste(tempgrade) }
+    else if(tempper=="07"||tempper=="7"){grad_dates[6,8] <- paste(tempgrade) }
+    else if(tempper=="08"||tempper=="8"){grad_dates[6,9] <- paste(tempgrade) }
+    else if(tempper=="09"||tempper=="9"){grad_dates[6,10] <- paste(tempgrade) }
+    else if(tempper=="10"){grad_dates[6,11] <- paste(tempgrade) }
+    else if(tempper=="11"){grad_dates[6,12] <- paste(tempgrade) }
+    else if(tempper=="12"){grad_dates[6,13] <- paste(tempgrade) }
+    else if(tempper=="13"){grad_dates[6,14] <- paste(tempgrade) }
+    else if(tempper=="23"){grad_dates[6,15] <- paste(tempgrade) }
+    else if(tempper=="26"){grad_dates[6,16] <- paste(tempgrade) }
+    else if(tempper=="28"){grad_dates[6,17] <- paste(tempgrade) }
+    else if(tempper=="29"){grad_dates[6,18] <- paste(tempgrade) }
+    else if(tempper=="RA"){grad_dates[6,19] <- paste(tempgrade) }
+    else if(tempper=="RB"){grad_dates[6,20] <- paste(tempgrade) }
+    else if(tempper=="EA"){grad_dates[6,21] <- paste(tempgrade) }
+    else if(tempper=="EB"){grad_dates[6,22] <- paste(tempgrade) }
+    else if(tempper=="MA"){grad_dates[6,23] <- paste(tempgrade) }
+    else if(tempper=="MB"){grad_dates[6,24] <- paste(tempgrade) }
+    else if(tempper=="AS"){grad_dates[6,25] <- paste(tempgrade) }
+    else if(tempper=="BS"){grad_dates[6,26] <- paste(tempgrade) }
+    else if(tempper=="SA"){grad_dates[6,27] <- paste(tempgrade) }
+    else if(tempper=="SB"){grad_dates[6,28] <- paste(tempgrade) }
+    
+  } # End of if loop for Fourth Nine weeks
+  
+  
+  else if(tempdate == "End of Year"){
+    
+    if(tempper=="01"||tempper=="1"){grad_dates[7,2] <- paste(tempgrade) }
+    else if(tempper=="02"||tempper=="2"){grad_dates[7,3] <- paste(tempgrade) }
+    else if(tempper=="03"||tempper=="3"){grad_dates[7,4] <- paste(tempgrade) }
+    else if(tempper=="04"||tempper=="4"){grad_dates[7,5] <- paste(tempgrade) }
+    else if(tempper=="05"||tempper=="5"){grad_dates[7,6] <- paste(tempgrade) }
+    else if(tempper=="06"||tempper=="6"){grad_dates[7,7] <- paste(tempgrade) }
+    else if(tempper=="07"||tempper=="7"){grad_dates[7,8] <- paste(tempgrade) }
+    else if(tempper=="08"||tempper=="8"){grad_dates[7,9] <- paste(tempgrade) }
+    else if(tempper=="09"||tempper=="9"){grad_dates[7,10] <- paste(tempgrade) }
+    else if(tempper=="10"){grad_dates[7,11] <- paste(tempgrade) }
+    else if(tempper=="11"){grad_dates[7,12] <- paste(tempgrade) }
+    else if(tempper=="12"){grad_dates[7,13] <- paste(tempgrade) }
+    else if(tempper=="13"){grad_dates[7,14] <- paste(tempgrade) }
+    else if(tempper=="23"){grad_dates[7,15] <- paste(tempgrade) }
+    else if(tempper=="26"){grad_dates[7,16] <- paste(tempgrade) }
+    else if(tempper=="28"){grad_dates[7,17] <- paste(tempgrade) }
+    else if(tempper=="29"){grad_dates[7,18] <- paste(tempgrade) }
+    else if(tempper=="RA"){grad_dates[7,19] <- paste(tempgrade) }
+    else if(tempper=="RB"){grad_dates[7,20] <- paste(tempgrade) }
+    else if(tempper=="EA"){grad_dates[7,21] <- paste(tempgrade) }
+    else if(tempper=="EB"){grad_dates[7,22] <- paste(tempgrade) }
+    else if(tempper=="MA"){grad_dates[7,23] <- paste(tempgrade) }
+    else if(tempper=="MB"){grad_dates[7,24] <- paste(tempgrade) }
+    else if(tempper=="AS"){grad_dates[7,25] <- paste(tempgrade) }
+    else if(tempper=="BS"){grad_dates[7,26] <- paste(tempgrade) }
+    else if(tempper=="SA"){grad_dates[7,27] <- paste(tempgrade) }
+    else if(tempper=="SB"){grad_dates[7,28] <- paste(tempgrade) }
+    
+  } # End of if loop for End of Year
+  
+
+  
+} # End of the for loop for looping over all the grade values
+
+
+  return(grad_dates) # Returning the graded data frame
+  
+  
+  
+  
+} # End of the function for getting the grade scores
+
+
+
+
+```
+
+Once the grades have been constructed in the form we want, let us merge it with the main data
+
+```{r}
+
+Student_timeline <- merge(Student_timeline,grad_dates,by="Date",all=TRUE) 
+
+# The above format of merge was the right thing to do.
+
+temp <- Student_timeline
+
+Final_timeline <- data.frame(matrix(nrow=1,ncol=48))
+colnames(Final_timeline) <- names(Student_timeline)
+
+# Now to eliminate all those rows where there is no data.
+
+cou = 0
+
+for(i in 1:nrow(Student_timeline)){
+  
+  for(j in 3:48){
+    
+    if(!is.na(Student_timeline[i,j])){ 
+      cou = cou+1
+      for(k in 1:48){
+       Final_timeline[cou,k] <- paste(Student_timeline[i,k])
+      }
+      break
+      } # End of the if loop
+    
+    
+  } # End of the columns for loop
+  
+  
+  
+  
+} # End of the rows For loop
+
+# Changing the Date in Final timeline to a Date format
+
+Final_timeline$Date <- as.Date(Final_timeline$Date)
+
+# Final_timeline$Date <- as.Date(Final_timeline$Date,origin="1970-01-01") # Not required now, however a useful method.
+
+for(i in c(18,19,22:48)){
+Final_timeline[,i] <- as.numeric(Final_timeline[,i]) 
+}
+
+# Creating a consolidated grade
+for(i in 1:nrow(Final_timeline)){
+Final_timeline$Congrade[i] <- sum(Final_timeline[i,22:48],na.rm=TRUE)
+}
+
+temp1 <- Final_timeline
+
+# Adding a consolidated discipline score also
+
+Final_timeline <- merge(Final_timeline,Discipline_template,by="BehaviorDetailedDescription",all.x=TRUE)
+
+colnames(Final_timeline)[50] <- "DisScore"
+
+Final_timeline$Month <- format(Final_timeline$Date,"%B")
+
+Final_timeline$Month <- factor(Final_timeline$Month,month.name)
+
+```
+
+Now that a consolidated time line has been created, we need to figure out how the analysis of this data set has to be done.
+
+# Grade Score v/s Discipline score
+
+Let us look at a small pattern from this data set. let us consolidate both grades and Discipline data
+
+
+```{r}
+
+samp_timeline1 <- Final_timeline %>% group_by(Month) %>% summarise(grade = sum(Congrade,na.rm=TRUE),discipline = sum(DisScore,na.rm=TRUE),attendence = sum(normpop,na.rm=TRUE))
+
+# Plotting the same
+library(ggplot2)
+library(dplyr)
+
+# Grade
+
+q1 <- ggplot(samp_timeline1,aes(Month,grade,color=grade)) + geom_point()
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# Discipline
+
+
+q2 <- ggplot(samp_timeline1,aes(Month,discipline,color=grade)) + geom_point()
+
+q2 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# 
+
+
+
+```
+
+Even for grades and discipline we need to normalise it with the race and population related normalisation. 
+
+Also let us look at a new data set with the consise values as the variables within the data set
+
+# JMJPFU
+# 16-9-2016
+
+Today we will look at the count of attendence related incidents per month
+
+```{r}
+
+library(dplyr)
+library(caret)
+
+# First take a subset of the data
+
+temp <- Final_timeline %>% select(Month,reasons)
+
+# Remove the NA's from the data
+
+temp <- temp[temp$reasons != "NA",]
+
+# Create dummy variables only with the reasons
+
+reasons <- temp %>% select(reasons) # taking a seperate data 
+
+dmy <- dummyVars("~.",data=reasons) # Creating a dmy variable
+
+newtemp <- data.frame(predict(dmy,newdata = temp)) # Predicting the new dummy variables
+
+temp <- cbind(temp$Month,newtemp) # attaching it with the older data frame
+
+names(temp) <- c("Month","Excused","Tardy","Unexcused")
+
+newtemp <- temp %>% group_by(Month) %>% summarise(Excused = sum(Excused),Tardy = sum(Tardy),Unexcused = sum(Unexcused))
+
+
+```
+
+Let us now merge this data set with the discipline and attendence data we already created
+
+```{r}
+samp_timeline1 <- merge(samp_timeline1,newtemp,by="Month",all.x=TRUE)
+
+# Adding the other variables like school, student ID , Race , Economic disadvantaged etc
+
+samp_timeline1$School <- Final_timeline$StateOrganizationId[1]
+samp_timeline1$Race <- Final_timeline$Race[1]
+samp_timeline1$Economic <- Final_timeline$EconomicDisadvantaged[1]
+samp_timeline1$normrace <- Final_timeline$normrace[1]
+
+```
+
+Let us do some preprocessing of this data by scaling
+
+```{r}
+library(caret)
+
+temp <- preProcess(samp_timeline1[,c(2:6)],method="scale")
+print(temp)
+
+samp_transformed <- predict(temp,samp_timeline1[,c(2:6)])
+
+samp_transformed$Month <- samp_timeline1$Month
+
+samp_transformed$Month <- factor(samp_transformed$Month,month.name)
+
+```
+
+Let us do some sample plotting with same x axes and multiple Y axes
+
+```{r}
+par(mar = c(5,5,2,5))
+with(samp_transformed,plot(Month,grade,type="l",col = "red",ylim=c(0,3)))
+
+par(new=T)
+with(samp_transformed,plot(Month,discipline,pch=16,axes = F,cex=1.2,col="red"))
+axis(side = 4)
+
+par(new=T)
+with(samp_transformed,plot(Month,attendence,pch=10,axes = F,cex=1.2))
+axis(side = 2)
+
+library(ggplot2)
+library(gtable)
+library(grid)
+
+p1 <- ggplot(samp_transformed,aes(Month,grade)) + geom_line(colour="blue") + theme_bw()
+p1
+p2 <- ggplot(samp_transformed,aes(Month,discipline)) + geom_line(colour="red") + theme_bw() %+replace% theme(panel.background = element_rect(fill=NA))
+
+# Extract gtable
+g1 <- ggplot_gtable(ggplot_build(p1))
+g2 <- ggplot_gtable(ggplot_build(p2))
+
+# Overlap the panel of end 
+
+
+
+qplot()
+
+
+#############3
+
+par(mfrow=c(1,3))
+
+q1 <- ggplot(samp_transformed,aes(Month,discipline,group=1)) + geom_line(col="blue")
+
+q1 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# the term group = 1 is required because without that we get an error geom_path: Each group consists of only one observation. Do you need to adjust the group aesthetic?
+
+q2 <- ggplot(samp_transformed,aes(Month,grade,group=1)) + geom_line(col="red")
+
+q2 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+q3 <- ggplot(samp_transformed,aes(Month,attendence,group=1)) + geom_line(col="green")
+
+q3 + theme(axis.text.x=element_text(angle=90,hjust=1))
+
+
+```
+
+

@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1474435068882.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "E67A6DB3",
+    "lastKnownWriteTime" : 31244173393002613,
+    "last_content_update" : 1474435068882,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "dwnsuil17p",
+        "caption" : "attend_trans",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=attend_trans&cache_key=dwnsuil17p",
+        "displayedObservations" : 484397,
+        "environment" : "",
+        "object" : "attend_trans",
+        "totalObservations" : 484397,
+        "variables" : 31
+    },
+    "relative_order" : 8,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

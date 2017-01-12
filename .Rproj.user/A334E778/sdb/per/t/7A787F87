@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "---\ntitle: \"Desoto_Att_Disc_Achieve\"\nauthor: \"Quadrant-4\"\ndate: \"September 19, 2016\"\noutput: html_document\n---\nIn this Document, we venture into observing the relationship between Attendence, Discipline and the grades obtained. Let us list down the various objectives which needs to be set out for this analysis. \n\n1. Relationship between Attendence and grade\n2. Relationshp between discipline score and grade\n3. Relationship between Attendence and discipline\n4. Patterns in terms of Attendence - School,Race, Time of year, Economic status, Sections\n5. Patterns in terms of Discipline - School,Race, Time of year, Ecomonic status, Sections\n6. Patterns of grade - School, Subjects where grades dropping, Subjects where grade improving, \n\n# Preparation of the data in the workable format\n\n",
+    "created" : 1474278020459.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2147810507",
+    "id" : "7A787F87",
+    "lastKnownWriteTime" : 1474296978,
+    "last_content_update" : 1474296978452,
+    "path" : "C:/Toms/customers/Edex/Edex/Att_Disc_Achievement.Rmd",
+    "project_path" : "Att_Disc_Achievement.Rmd",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 8,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}
