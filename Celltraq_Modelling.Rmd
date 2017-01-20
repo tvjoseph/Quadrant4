@@ -33,7 +33,7 @@ normalTrain <- normalCon %>% filter(label != "To_test")
 
 modelData <- rbind(normalTrain,failCon)
 
-modelData <- modelData %>% select(Battery,Counter,Bench1,Bench2,featDischarge,conSlope,dodMin,Dod50,Dod85,Dodtop,conDrop,con50,con80,contop,voltSD,label)
+modelData <- modelData %>% select(Battery,Counter,Bench1,Bench2,featDischarge,conSlope,dodMin,Dod50,Dod85,Dodtop,conDrop,contop,con80,contop,voltSD,label)
 
 ```
 
@@ -104,7 +104,7 @@ unique(validationSet$label)
 ```
 Still the validationSet does not have all the classes. So in the next pass we will try minority sampling techniques and redo the validation steps.
 
-Let us now look at the summary statistics of the data. Also look at the distribution of some of the values for Dod50 and con50
+Let us now look at the summary statistics of the data. Also look at the distribution of some of the values for Dod50 and contop
 
 # Summary Statistics
 
@@ -113,7 +113,7 @@ summary(batDataset)
 
 table(batDataset$Dod50)
 
-table(batDataset$con50)
+table(batDataset$contop)
 ```
 
 # Distribution of classes
@@ -527,7 +527,7 @@ We will try the same with the testing dataset which we created earlier.
 
 batTestSet <- normalCon %>% filter(label == "To_test")
 
-batTestSet <- batTestSet %>% select(Battery,Counter,Bench1,Bench2,featDischarge,conSlope,dodMin,Dod50,Dod85,Dodtop,conDrop,con50,con80,contop,voltSD)
+batTestSet <- batTestSet %>% select(Battery,Counter,Bench1,Bench2,featDischarge,conSlope,dodMin,Dod50,Dod85,Dodtop,conDrop,contop,con80,contop,voltSD)
 
 ```
 
@@ -725,4 +725,261 @@ plot(perf)
 ### Tomorrow
 
 1. Proceed further with other methods of SVM from Caret Package.
-2. Proceed with training with other methods like LDA, GLMNET etc
+2. Proceed with training with other methods like LDA, GLMNET,XGBOOST etc
+
+## JMJPFU
+### 18-Jan-2017
+
+Let us try to fine tune this model with transformations of the initial Data set and create a new modelling process. These are the things which we will do
+
+1. Transform the variables by using various transformation methods.
+2. Create the new model with the transformed variables with SVM
+3. Try out prediction from the new model.
+4. Look at different type of metrics for the model
+5. Try the whole steps for various algorithms - XGBOOST, RF, LDA, GLMNET, LR etc
+
+## JMJPFU
+### 19-jan-2017
+
+From today we will resort to preproccing of data and transforming the data and try out the modelling part
+
+## Step 1: Get the Training and Validation Dataset and plotting the variables
+
+```{r}
+par(mfrow=c(4,6))
+
+for(i in 5:15){
+  
+  hist(batDataset[,i],main=names(batDataset)[i])
+  plot(density(batDataset[,i]),main=names(batDataset)[i])
+}
+
+```
+
+So as seen from the plots, of the variables. Most of the data sets need to be transformed in one way or the other. So lets go variable by variable and apply various transformations.
+
+### Variable 1 : featDischarge
+Skew Type : Right skewed and exponential
+Data Values Range : All positive and non zero
+Type of Transformation : Box cox transform, since all values are positive
+
+### Variable 2 : dodMin
+Skew Type : left skewed and exponential
+Data Values Range : Positive
+Type of Transformation : YeoJohnson
+
+### Variable 3 : Dod50
+Skew Type : Right skewed and exponential
+Data Values Range : Positive
+Type of Transformation : YeoJohnson
+Scaling required : Yes as the ranges are from 0 to 50. So method "range" used to normalise data
+
+### Variable 4 : contop & Con80
+Skew Type : Right skewed and exponential
+Data Values Range : Positive
+Type of Transformation : YeoJohnson
+Scaling required : Yes as the ranges are from 0 to 100. So method "range" used to normalise data
+
+### Variable 5 : conDrop & conTop
+Skew Type : left skewed and exponential
+Data Values Range : Positive
+Type of Transformation : YeoJohnson
+Scaling required : Yes. ConDrop is between 0 and 1. ConTop most of the values are near 100 so maybe scaling can be done 
+
+### Variable 6 : voltsd
+Skew Type : Right skewed and exponential
+Data Values Range : Positive
+Type of Transformation : YeoJohnson
+Scaling required : Yes. 
+
+```{r}
+
+# Creating a new data set for transformations
+batDatTran <- batDataset
+
+# featDischarge
+range(batDatTran$voltSD)
+
+summary(batDatTran$voltSD)
+
+str(batDatTran$voltSD)
+
+
+
+```
+
+Applying the transformations
+
+```{r}
+
+# Applying the transformation
+
+
+featTrans <- preProcess(batDatTran[,c(15,9)],method=c("range","YeoJohnson")) # "range" is to normalize the data
+
+print(featTrans)
+
+
+transformed <- predict(featTrans,batDatTran[,c(15,9)])
+
+#batDatTran$Dod50 <- transformed$Dod50
+
+batDatTran[,15] <- transformed[,1]
+
+# Let us look at some visualisation
+
+par(mfrow=c(2,2))
+
+hist(batDatTran$voltSD,main=names(batDatTran$voltSD))
+hist(batDataset$voltSD,main=names(batDatTran$voltSD))
+plot(density(batDatTran$voltSD),main=names(batDatTran$voltSD))
+plot(density(batDataset$voltSD),main=names(batDatTran$voltSD))
+
+
+```
+
+So as seen using either BoxCox or YeoJohnson transformations result in near normal kind of distributions
+
+# Tomorrow
+Continue with the transformation and then further modelling
+
+### JMJPFU
+### 20-Jan-2017
+
+Continuing with the transfomation and then modelling.
+
+Now that the transformation is complete let us visualise the transformed data once more 
+
+```{r}
+
+par(mfrow=c(4,6))
+
+for(i in 5:15){
+  
+  hist(batDatTran[,i],main=names(batDatTran)[i])
+  plot(density(batDatTran[,i]),main=names(batDatTran)[i])
+}
+
+```
+Let us now start the modelling part and check the results. We have to carry out the spot checking process to find the best algorithm again with the transformed data and then do fine tuning to the best algorithm.
+
+## Step 2 : Spot checking algorithms to find the best algorithm
+
+
+In this step we will spot check some classes of algorithms to determine which algorithm will suite best this situation. The types of algorithms which we will test are the following
+
+1. Linear Algorithms : Logistic Regression, Linear Discriminate Analysis(LDA) and Regularized Logistic Regression ( GLMNET)
+
+2. Nonlinear Algorithms : K-Nearest Neighbours(KNN), CART, Naive Bayes & SVM
+
+3. Ensemble Methods : Bagging : Bagged CART ( BAG), Randome Forest ( RF)
+
+4. Ensemble Methods - Boosting : Stochastic Gradient Boosting(GBM) and C5.0 
+
+
+## Training Setup
+
+Let us go for a 10-fold cross validation with 3 repeats . For simplicity we will use Accuracy and Kappa metrics. We can also at a later stage go with Area Under ROC curve ( AUC ) and also look at sensitivity and specificity
+
+### 2.a : Defining the Train controls
+
+```{r}
+trainCont <- trainControl(method = "repeatedcv", number = 10,repeats = 3,classProbs = TRUE)
+
+metric <- "ROC"
+```
+
+### 2.b : Changing the names of the classes
+
+This is required because the names of classes with "_" is generating error when the training is going on. So we will remove the underscores
+
+```{r}
+
+unique(batDatTran$label)
+
+batLabels <- batDatTran %>% select(label)
+
+batLabels$label <- as.character(batLabels$label) # First convert into charchter from factor. Only then replacement is possible
+
+# Doing the substitution
+batLabels[batLabels$label=="Normal_Period",1] <- paste("NormalPeriod")
+batLabels[batLabels$label=="Failure_Point",1] <- paste("FailurePoint")
+batLabels[batLabels$label=="1_Period_before_Failure",1] <- paste("PeriodbeforeFailure1")
+batLabels[batLabels$label=="2_Period_before_Failure",1] <- paste("PeriodbeforeFailure2")
+batLabels[batLabels$label=="3_Period_before_Failure",1] <- paste("PeriodbeforeFailure3")
+batLabels[batLabels$label=="4_Period_before_Failure",1] <- paste("PeriodbeforeFailure4")
+batLabels[batLabels$label=="5_Period_before_Failure",1] <- paste("PeriodbeforeFailure5")
+batLabels[batLabels$label=="6_Period_before_Failure",1] <- paste("PeriodbeforeFailure6")
+batLabels[batLabels$label=="7_Period_before_Failure",1] <- paste("PeriodbeforeFailure7")
+
+# Comparing the results
+
+table(batLabels$label)
+table(batDatTran$label)
+
+# Changing back to factors
+
+batLabels$label <- as.factor(batLabels$label)
+str(batLabels)
+
+# Substituting the transformed dataset labels with the new ones
+
+batLabels1 <- batDatTran %>% select(label)
+
+batDatTran$label <- batLabels$label
+
+str(batDatTran)
+
+batLabels <- batLabels1
+
+```
+
+
+
+
+
+
+
+### 4.b : Checking out the various algorithms
+
+We will set seed so that all the algorithms train on the same split of data so that comparison is effective.
+
+```{r}
+
+
+set.seed(7)
+
+# Linear Discriminate Analysis ( LDA ) - Fitted
+
+#fit.lda <- train(label~.,data=batDatTran[,5:16],method = "lda",metric = metric, trControl = trainCont)
+
+# KNN : Fitted
+
+#fit.knn <- train(label~.,data=batDatTran[,5:16],metric=metric,method = "knn", trControl = trainCont)
+
+# CART : Fitted
+
+# fit.cart <- train(label~.,data=batDatTran[,5:16],method="rpart",metric=metric,trControl=trainCont)
+
+# Naive Bayes : Fitted with lots of error
+
+fit.nb <- train(label~.,data=batDatTran[,5:16],method = "nb",metric=metric, trControl = trainCont)
+
+# Support Vector Machines : Fitted 
+
+fit.svm <- train(label~.,data=batDatTran[,5:16],method="svmRadial",metric=metric,trControl=trainCont)
+
+
+
+```
+
+### Notes and Errors
+
+1. When ROC is used as a metric, class probabilities is required in trainControl function
+2. The class names are not in the proper format. Will have to change the names of the classes
+3. Even after the substitution it did not work because the names were still wrong. The method of putting a number before a name is wrong. We can try by putting a number after the name. Note : This worked
+4. Metric ROC did not work. Accuracy was used instead for LDA
+
+# Tomorrow
+Continue with the modelling and prediction part
+
