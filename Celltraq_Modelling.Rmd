@@ -940,7 +940,7 @@ batLabels <- batLabels1
 
 
 
-### 4.b : Checking out the various algorithms
+### 2.c : Checking out the various algorithms
 
 We will set seed so that all the algorithms train on the same split of data so that comparison is effective.
 
@@ -963,11 +963,11 @@ set.seed(7)
 
 # Naive Bayes : Fitted with lots of error
 
-fit.nb <- train(label~.,data=batDatTran[,5:16],method = "nb",metric=metric, trControl = trainCont)
+#fit.nb <- train(label~.,data=batDatTran[,5:16],method = "nb",metric=metric, trControl = trainCont)
 
 # Support Vector Machines : Fitted 
 
-fit.svm <- train(label~.,data=batDatTran[,5:16],method="svmRadial",metric=metric,trControl=trainCont)
+#fit.svm <- train(label~.,data=batDatTran[,5:16],method="svmRadial",metric=metric,trControl=trainCont)
 
 
 
@@ -980,6 +980,312 @@ fit.svm <- train(label~.,data=batDatTran[,5:16],method="svmRadial",metric=metric
 3. Even after the substitution it did not work because the names were still wrong. The method of putting a number before a name is wrong. We can try by putting a number after the name. Note : This worked
 4. Metric ROC did not work. Accuracy was used instead for LDA
 
+### JMJPFU
+### 23-Jan-2017
+
+Today we will continue with the modelling part with the transformed dataset.First we will evaluate all the algorithms and find which is the best among them for the transformed dataset.
+
+### 2.d : Checking various algorithms
+
+Let us now check the results of the various algorithms.
+
+```{r}
+results <- resamples(list(LDA = fit.lda,KNN = fit.knn,CART = fit.cart,NB = fit.nb,SVM = fit.svm))
+
+summary(results)
+
+dotplot(results)
+
+```
+
+As seen from the results, SVM seems to be the best algorithm again. First let us tune the SVM algorithm to find the most optimal parameters. Then et us try our prediction with the validation set and also the new data set and do a grid search to find the best parameters for tuning the SVM model.
+
+After doing the above we will also do the minority re-sampling process and then do a modelling based on that. 
+
+### 2.e : Checking various algorithms
+
+Fine tuning the SVM algorithm.
+
+```{r}
+
+trainCon <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+metric = "Accuracy"
+
+set.seed(7)
+
+grid <- expand.grid(.sigma = c(0.010,0.025,0.5,0.1,0.15), .C=seq(1,5,by=.5))
+
+fit.svmTune1 <- train(label~.,data=batDatTran[,5:16],method="svmRadial",metric=metric,trControl=trainCon,tuneGrid=grid)
+
+print(fit.svmTune1)
+
+plot(fit.svmTune1)
+
+```
+
+So as seen from the tuning the best set of parameters within this lot are 
+
+sigma = 0.5
+Cost = 1
+
+Let us try these parameters and look at training the model with these parameters
+
+Let us use the library e1071 for training the SVM model
+
+```{r}
+library(e1071)
+```
+
+### 2.f : Modelling with the optimal parameters and native SVM model
+
+SVM Parameters : sigma = 0.5, Cost = 1
+
+```{r}
+
+svmFit1 <- svm(label~., data = batDatTran[,5:16],gamma = 0.5,cost = 1,kernel = "radial")
+
+summary(svmFit1)
+
+table(svmFit1$fitted,batDatTran$label)
+
+```
+
+### Step 3 : Prediction on the testing data set
+
+
+```{r}
+batTestTran <- batTestSet
+```
+
+
+```{r}
+# Transforming the testing set
+
+featTrans <- preProcess(batTestTran[,c(5,7,10,11,13,14,15)],method = c("range","YeoJohnson"))
+
+transformed <- predict(featTrans,batTestTran[,c(5,7,10,11,13,14,15)])
+
+batTestTran[,c(5,7,10,11,13,14,15)] <- transformed
+
+# Transforming the validation set
+
+featTrans <- preProcess(validationSet[,c(5,7,10,11,13,14,15)],method = c("range","YeoJohnson"))
+
+transformed <- predict(featTrans,validationSet[,c(5,7,10,11,13,14,15)])
+
+validationSet[,c(5,7,10,11,13,14,15)] <- transformed
+
+```
+
+### 3.b : Predicting on the transformed dataset
+
+```{r}
+batTestTran$predicSVMTran1 <- predict(svmFit1,newdata=batTestTran[,5:15])
+
+table(batTestTran$predicSVMTran1)
+
+# Trying the above on the validation set
+
+validationSet$predicSVMTran1 <- predict(svmFit1,newdata=validationSet[,5:15])
+
+table(validationSet$predicSVMTran1)
+
+# Let us try the old model also
+
+batTestTran$predicSVMTran2 <- predict(svmRadfit,newdata=batTestTran[,5:15])
+
+table(batTestTran$predicSVMTran2)
+
+
+```
+The prediction on the transformed data set is all one dimensional. Let us try prediction without transforming the data and see how it fares.
+
+```{r}
+batTestSet$predicSVMRad3 <- predict(svmFit1,newdata=batTestSet[,5:15])
+
+table(batTestSet$predicSVMRad3)
+
+```
+
+So as seen the modelling on the transformed data set did not yield good results with both the test set and the validation sets.
+
+### JMJPFU
+### 24-Jan-2017
+
+Today we will try the minority sampling methods of Caret package and do the modelling with both transformation of the variables and without transformation of variables. Will also try the ensemble methods.
+
+Let us use the SMOTE method first
+
+### Installing the required library
+
+```{r}
+library(DMwR)
+
+```
+
+### Taking the data set and creating the minority classes
+
+```{r}
+batMinSet <- batDataset[,5:16]
+
+batMinSet$label <- batDatTran$label
+
+batMinSet <- SMOTE(label~.,batMinSet,perc.over = 1000)
+
+table(batMinSet$label)
+
+unique(batMinSet$label)
+
+```
+
+
+### Errors and notes
+
+1. First command : batMinSet <- SMOTE(label~.,batMinSet,perc.over = 1000,perc.under=100) : This created a data set with only with two classes. The majority classes was downgraded to about 30. All other classes was 0, 1_period was 33. Need to try without the per.under
+
+
+So all the different tries resulted in only two classes which get sampled. So one method to try is to take two classes each and then do the SMOTe algorithm on the two and then keep aggreagating the data. 
+
+```{r}
+datSamp1 <- batMinSet %>% filter(label %in% c("NormalPeriod","PeriodbeforeFailure7"))
+
+datSamp1$label <- as.character(datSamp1$label) # To remove other levels
+
+datSamp1$label <- as.factor(datSamp1$label) # To refactor the labels
+
+datMin <- SMOTE(label~.,datSamp1,perc.over = 20000,perc.under = 100)
+
+datMin <- datMin[complete.cases(datMin),]
+
+table(datMin$label)
+
+```
+
+Consolidating all the SMOTe data sets into one
+
+```{r}
+batMinFin <- batMinSet %>% filter(label == "NormalPeriod")
+
+```
+
+```{r}
+datMin <- datMin %>% filter(label == "PeriodbeforeFailure7" ) # Taking only the Failure Point classes
+
+batMinFin <- rbind(batMinFin,datMin)
+
+table(batMinFin$label)
+```
+### JMJPFU
+### 25-Jan-2017
+
+Continue with training with the new data set and then try validating with the current data set to check how it fares.
+
+We can try transformation of the variable and without transformation.
+
+### Step 1 : Creating a Training set and a validation set with the SMOTe data set
+
+```{r}
+
+set.seed(7)
+
+# Creating the validation Index
+
+validationIndex <- createDataPartition(batMinFin$label,p=0.80,list = FALSE)
+
+# Creating the validation set
+
+validationSet1 <- batMinFin[-validationIndex,]
+
+# Creating the Dataset
+
+batDataset1 <- batMinFin[validationIndex,]
+
+table(validationSet1$label)
+
+table(batDataset1$label)
+
+
+```
+
+### Step 2 : Doing a spot check with various algorithms on the new SMOTe data set
+
+
+#### Step 2a : Defining the train control and metrics
+
+
+```{r}
+trControl <- trainControl(method="repeatedcv",number = 10, repeats = 3,classProbs = TRUE)
+
+metric <- "ROC"
+```
+
+
+### Step 2b : Checking whether the labels are factors or not and then converting it into factors
+
+```{r}
+
+str(batDataset1$label)
+
+str(validationSet1$label)
+
+```
+
+Both are factors
+
+### Step 2c : Doing the spot check with various algorithms
+
+```{r}
+set.seed(7)
+
+# Logistic Regression with glm : Does not fit for multiclass problems
+
+# glm.fit1 <- train(label~.,data=batDataset1,method="glm",metric=metric,trControl = trControl)
+
+# Boosted Generalised LInear model : Did nto have the required packages. Will try out later
+
+# BGLM.fit1 <- train(label~.,data=batDataset1,method="glmboost",metric=metric,trControl=trControl)
+
+# Linear Discriminant Analysis : Fitted by with metric as accuracy
+
+# lda.fit1 <- train(label~.,data=batDataset1,method = "lda",metric= metric,trControl=trControl)
+
+# Generalised linear models : Fitted with lots of errors
+
+#glm.fit1 <- train(label~.,data=batDataset1,method="glmnet",metric=metric,trControl=trControl)
+
+# KNN : Fitted with no errors
+
+# knn.fit1 <- train(label~.,data=batDataset1,method="knn",metric=metric,trControl=trControl)
+
+# CART : Fitted with no error
+
+# cart.fit1 <- train(label~.,data=batDataset1,method="rpart",metric=metric,trControl=trControl)
+
+# Naive Bayes : Fitted with lots of errors
+
+# nb.fit1 <- train(label~.,data=batDataset1,method="nb",metric=metric,trControl=trControl)
+
+# SVM : Fitted without much error.
+
+# svm.fit1 <- train(label~.,data=batDataset1,method="svmRadial",metric=metric,trControl=trControl)
+
+
+```
+
+
+## Errors and notes
+
+1. Glm : Did not fit for multi class problems.
+2. LDA : Fitted with metric as Accuracy
+3. GLMnet : Fitted with lots of errors
+4. None of the methods used ROC. It seems ROC as a metric can only be used for 2 class problems.
+
 # Tomorrow
-Continue with the modelling and prediction part
+
+1. Model with the ensemble methods also
+2. Check how the model performs for both ensemble and other set of models
+3. Try prediction also
+
+
 
