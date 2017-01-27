@@ -1,0 +1,101 @@
+
+# JMJPFU
+# 27-Jan-2017
+# Random Forest Implementation for Celltraq
+
+### Reference Link
+
+http://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+
+Search keyword in Google : Random Forest tuning with Caret
+
+First we will try Random Forest Models using the caret package methods. After that we will use Random Forest with the native methods.
+
+## Random Forest Implementation with the Caret Package Methods
+
+
+### Step A : Loading the required libraries
+
+```{r}
+library(plyr)
+library(dplyr)
+library(caret)
+library(ggplot2)
+```
+
+
+### Step 1. Preparing and Preprocessing the training and validation sets
+
+```{r}
+set.seed(7)
+
+# Preprocessing 
+
+xTrain <- batDataset1
+
+xVal <- validationSet1
+
+preprocessParamsTr <- preProcess(xTrain,method = c("BoxCox"))
+
+xTrain <- predict(preprocessParamsTr,xTrain)
+
+preprocessParamsVl <- preProcess(xVal,method=c("BoxCox"))
+
+xVal <- predict(preprocessParamsVl,xVal)
+
+
+
+```
+
+### Step 2. Tuning the Random Forest Model with traincontrol and grid expansion - Baseline
+
+The parameters which we will tune are the following
+
+1. mtry : Number of variables randomly sampled as candidates for each split
+2. ntree : Number of trees to grow
+
+For the baseline we will try the following
+
+mtry = floor(sqrt(ncol(xTrain)))
+ntree = 500
+
+
+
+```{r}
+# Setting the traincontrol parameters
+trainConRf <- trainControl(method = "repeatedcv",number=10,repeats=3)
+
+seed = 7
+
+metric = "Accuracy"
+
+set.seed(seed)
+
+mtry = floor(sqrt(ncol(xTrain)))
+
+# Setting the Grid Expand
+
+gridRf <- expand.grid(.mtry=mtry)
+
+rfDefault <- train(label~.,data=xTrain,method="rf",metric=metric,tuneGrid=gridRf,trControl=trainConRf)
+
+print(rfDefault)
+
+
+
+```
+Let us now try the prediction of the default RF model
+
+```{r}
+xVal$rfDefault <- predict(rfDefault,newdata = xVal[,1:11])
+
+confusionMatrix(xVal$label,xVal$rfDefault)
+```
+Just trying out on the batTestSet also
+
+```{r}
+batTestSet$rfDefault <- predict(rfDefault,newdata = batTestSet[,5:15])
+
+table(batTestSet$rfDefault)
+```
+

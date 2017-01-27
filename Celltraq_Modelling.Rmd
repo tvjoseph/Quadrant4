@@ -18,6 +18,7 @@ This notebook will detail the modelling steps and process. The broad process is 
 Loading libraries
 
 ```{r}
+library(plyr)
 library(dplyr)
 library(ggplot2)
 library(caret)
@@ -1281,11 +1282,104 @@ set.seed(7)
 3. GLMnet : Fitted with lots of errors
 4. None of the methods used ROC. It seems ROC as a metric can only be used for 2 class problems.
 
-# Tomorrow
+### JMJPFU
+### 27-Jan-2017
+
+Today we will explore further on the SMOTe data set. We will try the following
 
 1. Model with the ensemble methods also
 2. Check how the model performs for both ensemble and other set of models
 3. Try prediction also
+
+## Step : 1 : Trying the ensemble method
+
+Let us look at the following ensemble methods
+
+1. Bagging : Bagged CART ( BAG) and Random Forest ( RF)
+2. Boosting : Stochastic Gradient Boosting (GBM) and C5.0 (C50)
+
+## Step : 1.a : Train Control
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3)
+metric = "Accuracy"
+
+```
+
+## Step : 2.a : Bagged CART
+
+```{r}
+set.seed(7)
+# Bagged Tree
+
+# fit.treebag <- train(label~.,data=batDataset1,method="treebag",metric=metric,trControl=trainCon)
+
+# Random Forest
+
+#fit.RF <- train(label~.,data=batDataset1,method="rf",metric=metric,trControl=trainCon) # Should do a preprocessing with Boxcox
+
+# Stochastic Gradient Boosting
+
+#fit.gbm <- train(label~.,data=batDataset1,method="gbm",metric=metric,preProc=c("BoxCox"),trControl=trainCon,verbose=TRUE)
+
+# C5.0
+
+# fit.c50 <- train(label~.,data=batDataset1,method="C5.0",metric=metric,preProc=c("BoxCox"),trControl=trainCon)
+
+
+```
+
+Now that all the methods are tried, let us try the re-samples seperately .
+
+1. Seperate reasmples with linear/non linear methods and ensemble methods
+2. Combining all the methods together and find the better model among them
+
+## Step 2.b :Spot checking to find the better algorithm for the problem
+
+
+Normal models
+
+```{r}
+results1 <- resamples(list(LDA = lda.fit1,GLM = glm.fit1,KNN = knn.fit1,CART = cart.fit1,NB = nb.fit1,SVM = svm.fit1))
+
+summary(results1)
+
+dotplot(results1)
+```
+
+Ensemble Models
+
+
+```{r}
+results2 <- resamples(list(BAG = fit.treebag,RF = fit.RF,GBM = fit.gbm,C50 = fit.c50 ))
+
+summary(results2)
+
+dotplot(results2)
+```
+
+
+All models together
+
+```{r}
+results3 <- resamples(list(LDA = lda.fit1,GLM = glm.fit1,KNN = knn.fit1,CART = cart.fit1,NB = nb.fit1,SVM = svm.fit1,BAG = fit.treebag,RF = fit.RF,GBM = fit.gbm,C50 = fit.c50 ))
+
+summary(results3)
+
+dotplot(results3)
+
+```
+
+
+So As seen, the ensemble models outperform the other methods hands down. However We will try each of the tried models seperately and then create a complete package of tuning and prediction procedures seperately for each of the models.
+
+All these will be done in seperate files.
+
+
+
+
+
+
 
 
 
