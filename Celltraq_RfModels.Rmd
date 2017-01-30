@@ -100,3 +100,113 @@ table(batTestSet$rfDefault)
 ```
 
 ## The git repository is Quadrant4. The file is picked from the git repository Quadrant4
+
+## JMJPFU
+### 30-Jan-2017
+1. Let us first check the results we got 
+1. Continue with the tuninig and prediction of the RF model as per the ML mastery website
+
+### Step 3 : Testing the results of prediction through visualisation.
+
+```{r}
+# Getting those batteries which are indicated as failed
+
+failedBats <- unique(batTestSet %>% filter(rfDefault != "NormalPeriod") %>% select(Battery))
+
+```
+
+Visualising the batteries
+
+```{r}
+
+Temp_bat_consol <- bat_newfeat5 %>% filter(Battery %in% failedBats$Battery[12]) %>% filter(measure %in% c("Conductance","DOD","Voltage")) #  %>% filter(Date <= "2015-05-02") # Taking the requuired data # ,"DOD","Voltage"
+
+q5 <- ggplot(data=Temp_bat_consol,aes(as.factor(Date1),Variable,color=measure)) + geom_point() + facet_grid(measure~Battery,scales = "free") # ,margins =TRUE can be included if we want everything together in one graph
+
+q5 + theme(axis.text.x=element_text(angle=70,hjust=1))
+
+
+batTestSet %>% filter(Battery %in% failedBats$Battery[12]) %>% select(rfDefault)
+
+
+
+```
+
+
+So as seen from the visualisations, the predictions were reasonably oK. Let us now continue with the other methods as per the website.
+
+### Step 4.a : Tuning the parameter with Random search
+
+Let us search for the most optimal mtry by randomly searching and repeated cross validation
+
+```{r}
+# Random Search
+
+control <- trainControl(method="repeatedcv",number=10,repeats=3,search="random") # Setting the train control
+
+set.seed(seed) # setting the seed
+
+mtry <- sqrt(ncol(xTrain)) # Defining the mtry
+
+rfRandom <- train(label~.,data=xTrain,trControl=control, method="rf",metric=metric,tuneLength=15)
+
+print(rfRandom)
+
+plot(rfRandom)
+
+
+
+```
+
+Now that we have done the training, let us try prediction on the validation set and check the model.
+
+```{r}
+xVal$rfRandom <- predict(rfRandom,newdata = xVal[,1:11])
+
+confusionMatrix(xVal$label,xVal$rfRandom)
+
+```
+
+The model which we got after the random search was pretty neat. Let us try predicting on the test set
+
+```{r}
+batTestSet$rfRandom <- predict(rfRandom,newdata = batTestSet[,5:15])
+
+table(batTestSet$rfRandom)
+
+```
+Thank Lord, this looks pretty neat. Let us now try the next method, which is Grid Search
+
+### Step 4.b : Grid Search
+
+In this method, we define a grid of parameters to try
+
+```{r}
+
+# Defining the control parameters
+
+control <- trainControl(method = "repeatedcv",number=10, repeats=3,search = "grid")
+
+# Setting the seed
+
+set.seed(seed)
+
+# Defining Tune grid
+
+tunegrid <- expand.grid(.mtry=c(1:10))
+
+# Running the model
+
+rfGrid <- train(label~.,data=xTrain,method="rf",metric=metric,trControl=control,tuneGrid = tunegrid)
+
+# Printing the results
+
+print(rfGrid)
+
+plot(rfGrid)
+
+```
+### Tomorrow
+
+1. Continue with other methods as listed in RF.
+2. Start off with a new algorithm
