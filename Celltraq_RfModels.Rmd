@@ -206,7 +206,136 @@ print(rfGrid)
 plot(rfGrid)
 
 ```
-### Tomorrow
+### JMJPFU
+### 1-Feb-2017
 
-1. Continue with other methods as listed in RF.
-2. Start off with a new algorithm
+Let us look at prediction on the validation set and the test set with the new model
+
+```{r}
+# Testing on the validation set
+xVal$rfGrid <- predict(rfGrid,newdata = xVal[,1:11])
+
+confusionMatrix(xVal$label,xVal$rfGrid)
+
+```
+
+The grid search results were a little wayward compared to the randome search results. Let us try testing on the test set also.
+
+```{r}
+batTestSet$rfGrid <- predict(rfGrid,newdata = batTestSet[,5:15])
+
+table(batTestSet$rfGrid)
+
+```
+
+Cant say much about these predictions. Will have to visualize the same and then arrive at conclusions.
+
+### Step 4.c : Tune using algorithm tools
+
+Random forest algorithm provides its native tuning methods. Let us try that out now.
+
+```{r}
+set.seed(seed)
+bestmtry <- tuneRF(xTrain[,1:11],xTrain$label,stepFactor = 1.5,improve = 1e-5,ntree=500 )
+print(bestmtry)
+
+```
+
+So as seen, mtry = 4 got some good results. It was in agreement to the results we got earlier.
+
+Now let us try out the manual parameter search methods.
+
+#### Manual tuning
+
+```{r}
+# Manual search
+
+control <- trainControl(method="repeatedcv",number=10,repeats=3,search="grid")
+
+tunegrid <- expand.grid(.mtry=c(sqrt(ncol(xTrain))))
+
+modellist <- list()
+
+for(ntree in c(1000,1500,2000,2500)){
+  
+  set.seed(seed)
+  
+  fit <- train(label~.,data=xTrain,method="rf",metric=metric,trControl=control,tuneGrid = tunegrid,ntree=ntree)
+  
+  key <- toString(ntree) # Making a string for indicating the model list
+  
+  modellist[[key]] <- fit
+  
+  
+  
+  
+}
+
+# Comparing results
+
+results <- resamples(modellist)
+summary(results)
+dotplot(results)
+```
+
+With the custom method let us try prediction on the validation set.
+
+```{r}
+xVal$rfCustom <- predict(modellist$`1000`,newdata = xVal[,1:11])
+
+confusionMatrix(xVal$label,xVal$rfCustom)
+
+```
+
+Let us try out some prediction on the test set also.
+
+```{r}
+
+batTestSet$rfCustom <- predict(modellist$`1000`,newdata = batTestSet[,5:15])
+
+table(batTestSet$rfCustom)
+
+```
+
+### 4.d : Extending Caret with custom made functions
+
+```{r}
+customRF <- list(type="Classification",library="randomForest",loop = NULL)
+customRF$parameters <- data.frame(parameter = c("mtry","ntree"),class = rep("numeric",2),label=c("mtry","ntree"))
+customRF$grid <- function(x,y,len=NULL,search="grid"){}
+customRF$fit <- function(x,y,wts,param,lev,last,weights,classProbs,...){
+  
+  randomForest(x,y,mtry=param$mtry,ntree=param$ntree,...)
+}
+
+customRF$predict <- function(modelFit,newdata,preProc=NULL,submodels=NULL)
+  predict(modelFit,newdata)
+
+customRF$prob <- function(modelFit,newdata,preProc=NULL,submodels=NULL)
+  predict(modelFit,newdata,type="prob")
+
+customRF$sort <- function(x) x[order(x[,1]),]
+customRF$levels <- function(x) x$classes
+
+
+
+```
+
+Let us use these in our new call to the RF function
+
+```{r}
+#train model
+
+control <- trainControl(method="repeatedcv",number = 10, repeats=3)
+
+tunegrid <- expand.grid(.mtry=c(1:15),.ntree=c(1000,1500,2000,2500))
+
+set.seed(seed)
+
+newCustom <- train(label~.,data=xTrain,method=customRF,metric=metric,tuneGrid=tunegrid,trControl=control)
+summary(custom)
+plot(custom)
+```
+
+
+

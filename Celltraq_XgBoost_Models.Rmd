@@ -1,0 +1,92 @@
+---
+title:"JMJPFU-XGBoost Model"
+output: html_notebook
+---
+
+### JMJPFU 
+### 2-Feb-2017 : 
+
+This is a sample notebook for XGBoost model. 
+
+### Step1 : Setting the library functions
+
+```{r}
+library(xgboost)
+library(Matrix)
+library(data.table)
+library(Rtsne)
+```
+
+
+### Step 2 : Preparing the labels using one hot encoding
+
+XGboost works only with numerical data. Therefore the label data has to be converted using one-hot encoding.
+
+```{r}
+xTrainohe <- xTrain
+oheLabel <- sparse.model.matrix(label~.-1,data=xTrainohe)
+head(oheLabel)
+```
+Now converting the label data into numeric form.
+
+```{r}
+xLabel <- xTrain[,"label"]
+
+levels(xLabel)
+
+num.class <- length(levels(xLabel))
+
+levels(xLabel) <- 1:num.class
+
+head(xLabel,50)
+  
+  
+```
+
+Let us ignore the earlier created sparse matrix and create a new train matrix without including the label in it.
+
+```{r}
+
+xTrainohe <- xTrainohe[,1:11] # Exclusing the labels vector
+```
+
+Let us now try out a tSNE ( t-Distributed Stochastic Neighbour Embedding) visualisation 
+
+Reference Link : https://rpubs.com/flyingdisc/practical-machine-learning-xgboost
+
+
+```{r}
+tsne <- Rtsne(as.matrix(xTrainohe),check_duplicates = FALSE,pca = TRUE,perplexity = 30,theta = 0.5,dims=2)
+
+summary(tsne)
+```
+
+Visualising the same
+
+```{r}
+library(ggplot2)
+
+embedding = as.data.frame(tsne$Y)
+embedding$Class = xTrain[,"label"]
+
+g = ggplot(embedding,aes(x=V1,y=V2,color=Class)) + geom_point(size=1.25)+ guides(colour=guide_legend(override.aes = list(size=6))) + xlab("") + ylab("") + ggtitle("t-SNE 2D Embedding of 'Label' Outcome") + theme_light(base_size = 20) + theme(axis.text.x=element_blank(),axis.text.y=element_blank())
+
+print(g)
+```
+
+Looking at the 2d embedding we can see some clusters being formed. 
+
+### Generating a random number between 1 & 736
+
+```{r}
+
+rand <- sample(1:736,500)
+
+write.csv(rand,"BibleRead.csv")
+
+```
+
+### Tomorrow
+
+1. Continue with the Xgboost model example and wrap it up
+2. Start with new methods and models tomorrow
