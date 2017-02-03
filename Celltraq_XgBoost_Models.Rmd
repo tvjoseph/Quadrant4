@@ -86,7 +86,85 @@ write.csv(rand,"BibleRead.csv")
 
 ```
 
-### Tomorrow
+### JMJPFU
+### 3-Feb-2017
+
 
 1. Continue with the Xgboost model example and wrap it up
-2. Start with new methods and models tomorrow
+2. Start with new methods and models
+
+```{r}
+# Convert data into a matrix
+xTrainMatrix = as.matrix(xTrainohe)
+mode(xTrainMatrix) = "numeric"
+
+# xgboost takes multi-labels in [0,numof classes]
+y = as.matrix(as.integer(xLabel)-1)
+```
+
+### Step 3.a : Setting the xGBoost Parameters
+
+```{r}
+# xgboost parameters
+
+param <- list("objective"= "multi:softprob", # multiclass classification
+              "num_class" = num.class, # Number of classes
+              "eval_metric" = "merror", # Evaluation metric
+              "nthread" = 8, # number of threads to be used
+              "max_depth" = 16, # maximum depth of tree
+              "eta" = 0.3, # step size shrinkage
+              "gamma" = 0, # minimum loss reduction
+              "subsample" = 1, # part of data instances to grow tree
+              "colsample_bytree" = 1, # subsample ratio of columns when constructing each tree
+              "min_child_weight" = 12 # minimum sum of instance weight needed in a child
+              )
+```
+
+### Step 3.b : 10-fold cross validation
+
+```{r}
+set.seed(1234)
+
+nround.cv = 200
+
+system.time(bst.cv <- xgb.cv(param=param, data=xTrainMatrix,label=y,nfold = 10,nrounds = nround.cv,prediction = TRUE,verbose = FALSE))
+```
+
+Checking the cv scores
+
+```{r}
+head(bst.cv,10)
+```
+Let us look at the cross validation score and find the index with the minimum multiclass error rate
+
+```{r}
+# index of minimum merror
+
+min.merror.idx = which.min(bst.cv$evaluation_log$test_merror_mean)
+
+min.merror.idx
+
+bst.cv$evaluation_log[min.merror.idx]
+```
+
+The minimum error rate is for iteration 157 as shown above
+
+### Step 3.c : Confusion matrix
+
+```{r}
+pred.cv <- matrix(bst.cv$pred,nrow=length(bst.cv$pred)/num.class,ncol=num.class)
+
+pred.cv <- max.col(pred.cv,"last") # Taking the max accross the columns which is the probability of each class
+
+# Confusion matrix
+
+
+library(coret)
+confusionMatrix(factor(y+1),factor(pred.cv))
+```
+
+Thank you Lord for the progress so far in the xgboost model.
+
+# Tomorrow
+
+More experiments with XGboost models from the site
