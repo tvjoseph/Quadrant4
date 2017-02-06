@@ -1,0 +1,46 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# JMJPFU
+# 6-Feb-2017
+
+This is a Notebook to demonstrate various modelling techniques using C5.0 library
+
+### Step:1 : Setting up the library functions
+
+```{r}
+library(caret)
+library(C50)
+```
+
+### Step 2: Loading and preparing the dataset
+
+```{r}
+dim(xTrain)
+dim(xVal)
+```
+
+### Step 3: Setting the Validation parameters,
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3)
+seed <- 7
+set.seed(7)
+metric = "Accuracy"
+
+C5Model <- train(label~.,data=xTrain,method="C5.0",metric=metric,trControl=trainCon)
+
+summary(C5Model)
+
+```
+
+Let us try prediction on the validation set with the C5.0 model.
+
+```{r}
+xVal$C5pred <- predict(C5Model,xVal[,1:11],type="raw")
+
+confusionMatrix(xVal$label,xVal$C5pred)
+```
+

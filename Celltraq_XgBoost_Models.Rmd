@@ -159,12 +159,13 @@ pred.cv <- max.col(pred.cv,"last") # Taking the max accross the columns which is
 # Confusion matrix
 
 
-library(coret)
+library(caret)
 confusionMatrix(factor(y+1),factor(pred.cv))
 ```
 
 Thank you Lord for the progress so far in the xgboost model.
 
-# Tomorrow
+### JMJPFU
+### 6-Feb-2017
 
-More experiments with XGboost models from the site
+We will pursue with more experiments with xgboost later on. Let us stop the methods for now and then continue with another method of prediction with another algorithm.
