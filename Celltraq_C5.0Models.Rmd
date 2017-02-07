@@ -44,3 +44,68 @@ xVal$C5pred <- predict(C5Model,xVal[,1:11],type="raw")
 confusionMatrix(xVal$label,xVal$C5pred)
 ```
 
+### JMJPFU
+### 7-Feb-2017
+
+Now that we have tried prediction on the validation set, let us try prediction with C5 model on the test set also.
+
+```{r}
+batTestSet$c5Model <- predict(C5Model,newdata = batTestSet[,5:15])
+
+table(batTestSet$c5Model)
+```
+
+In this model we have only the Period7 which has been predicted. Need to validate the results later on.
+
+Let us now try another method as per the below URL for this C5 model.
+
+http://www.euclidean.com/machine-learning-in-practice/2015/6/12/r-caret-and-parameter-tuning-c50
+
+
+```{r}
+
+# Defining the trainControl parameters
+
+trainCon <- trainControl(method="repeatedcv",number=10,repeats = 5, returnResamp ='all')
+
+# Setting the grid
+
+grid <- expand.grid(.winnow=c(TRUE,FALSE),.trials=c(1,5,10,15,20),.model='tree')
+
+# Training the model
+
+C5Grid <- train(label~.,data=xTrain,method="C5.0",tuneGrid=grid,trControl=trainCon,verbose=FALSE)
+
+
+
+```
+
+Plotting the model
+
+```{r}
+xyplot(C5Grid,type=c("g","p","smooth"))
+```
+
+
+
+```{r}
+plot(C5Grid)
+```
+
+
+
+
+Let us test the new model on the validation set
+
+```{r}
+
+xVal$C5Gridpred <- predict(C5Grid,xVal[,1:11],type="raw")
+
+confusionMatrix(xVal$label,xVal$C5Gridpred)
+
+```
+
+As seen from the results, only Period2 is all over the place. Other classes are much better than the 
+
+## Tomorrow
+Continue with a new set of algorithm and check results
