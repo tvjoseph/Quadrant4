@@ -1,0 +1,40 @@
+---
+title: "JMJPFU-LDA"
+output: html_notebook
+---
+
+# JMJPFU
+## 8-Feb-2017
+
+This notebook explores various methods to predict with LDA model and do prediction with LDA model. In the later half will also experiment with tuning parameters with the LDA model.
+
+### Initial tasks : Setting the library Functions
+
+```{r}
+library(caret)
+library(dplyr)
+library(ggplot2)
+```
+
+
+### Step1 : Setting the train control parameters
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3)
+
+seed = 7
+set.seed(seed)
+metric= "Accuracy"
+```
+
+### Step2 : Training the model using LDA
+
+```{r}
+
+ldaModel <- train(label~.,data=xTrain,method='lda',metric=metric,trControl=trainCon)
+
+
+
+```
+
+

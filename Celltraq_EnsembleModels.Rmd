@@ -1,0 +1,221 @@
+---
+title: "JMJPFU-Ensemble model"
+output: html_notebook
+---
+
+In this Notebook we will try an ensemble method. In this method we will try stacking various algorithms and check out on the reults. We will be using the caret package for the ensemble method.
+
+### Initial Tasks : Setting up the Library functions
+
+```{r}
+library(caret)
+library(dplyr)
+library(ggplot2)
+library(caretEnsemble) # This is required for caretList function
+
+```
+
+
+## Step 1 : Setting the train Control parameters and training the model
+
+In the first step, let us create some sub-models using the trainControl function
+
+```{r}
+
+# Setting the train control
+
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3,savePredictions=TRUE,classProbs=TRUE)
+
+# Defining the algorithm list
+
+algorithmList <- c('lda','rpart','knn','svmRadial')
+
+# Creating the model
+
+set.seed(seed)
+
+baseModels <- caretList(label~.,data=xTrain,trControl=trainCon,methodList = algorithmList)
+
+# Resampling the models
+
+results <- resamples(baseModels)
+
+summary(results)
+dotplot(results)
+
+
+
+```
+
+## Step2 : Correlations checking between various model
+
+Let us now observe the correlations between the various algorithms used
+
+```{r}
+modelCor(results)
+
+splom(results)
+```
+So as seen from the results, all the models have very low correlation between them which is good.
+
+### Step 3 : Stacking each model one by one
+
+```{r}
+# Stacking a NB model
+
+stackControl <- trainControl(method="repeatedcv",number=10,repeats=3,savePredictions=TRUE,classProbs=TRUE)
+
+set.seed(seed)
+
+stackNb <- caretStack(baseModels,method="nb",metric=metric,trControl=stackControl)
+
+print(stackNb)
+
+
+```
+
+When trying the stacking algorithm, it seems that it will work only for binary classification problems and not for multiclass problems.
+
+
+### To get list of all models supported by Caret
+
+```{r}
+
+names(getModelInfo())
+
+```
+
+To see the type of models supported by a method the below can be used
+
+```{r}
+getModelInfo()$nb$type
+
+getModelInfo()$svmPoly$type
+```
+
+
+Let us now attempt another method of Ensemble as given in the link below
+
+http://amunategui.github.io/blending-models/
+
+Another good reference on caret package and some other methods
+
+https://www.r-bloggers.com/cross-validation-for-predictive-analytics-using-r/
+
+In this method of emsembled data, what is done is the following
+
+1. Data is split into three sets ( One for ensemble, one for training and one for testing)
+2. A baseline model is created seperately
+3. Three seperate models are created ( You can create as many models as require)
+4. Three seperate prediction are created for the above three seperate models on the same dataset
+5. The predictions are made as seperate features 
+6. A new model is created with the predictions in the earlier step as features
+7. The new model is then tested on the test set.
+
+The above process is tested as below.
+
+### Step1 : Preparing seperate data sets for the three purposes
+
+```{r}
+# Combining both Trainset and validation set into one single data set
+
+dataCombined <- rbind(batDataset1,validationSet1)
+
+# Now splitting the dataset
+
+set.seed(1234)
+
+dataMix <- dataCombined[sample(nrow(dataCombined)),] # Just mixing the whole data
+
+split <- floor(nrow(dataMix)/3) # Taking one third of the data
+
+ensembleData <- dataMix[1:split,] # First data set for ensemble data
+
+blenderData <- dataMix[(split+1):(split*2),]
+
+testingData <- dataMix[(split*2+1):nrow(dataMix),]
+
+table(ensembleData$label)
+table(blenderData$label)
+table(testingData$label)
+
+```
+
+The data has been split and the distribution of classes are also reasonable. 
+
+Let us now assign the outcome to label and the other variables to predictors
+
+```{r}
+predictors <- names(ensembleData)[names(ensembleData) != 'label']
+predictors
+```
+
+## Step 2 : Creating the train control and making the benchmark model
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3)
+
+# Use the blender data for baselining
+
+test_model <- train(blenderData[,predictors],blenderData[,'label'],method='gbm',metric='Accuracy',trControl=trainCon)
+```
+Let us use the model to predict a baseline prediction
+
+```{r}
+preds <- predict(object=test_model,testingData[,predictors])
+
+confusionMatrix(testingData[,'label'],preds)
+```
+
+So the accuracy of the baseline model is around 95%.
+
+### Step 3 : Trying out the ensemble model
+
+Let us now create three ensemble models on the ensemble data set
+
+```{r}
+
+modelNB <- train(ensembleData[,predictors],ensembleData[,'label'],method='nb',trControl = trainCon)
+
+modelRF <- train(ensembleData[,predictors],ensembleData[,'label'],method='rf',trControl = trainCon)
+
+modelTreebag <- train(ensembleData[,predictors],ensembleData[,'label'],method='treebag',trControl=trainCon)
+
+```
+
+After these three models are trained, we use these models to predict on the blender data and also the testing data
+
+```{r}
+
+blenderData$nbProb <- predict(object = modelNB,blenderData[,predictors])
+blenderData$rfProb <- predict(object = modelRF,blenderData[,predictors])
+blenderData$tbProb <- predict(object = modelTreebag,blenderData[,predictors])
+
+testingData$nbProb <- predict(object=modelNB,testingData[,predictors])
+testingData$rfProb <- predict(object=modelRF,testingData[,predictors])
+testingData$tbProb <- predict(object=modelTreebag,testingData[,1:11])
+
+
+```
+
+Now let us train a final blending model on the old data
+
+```{r}
+predictors <- names(blenderData)[names(blenderData) != 'label']
+
+finalBlendModel <- train(blenderData[,predictors],blenderData[,'label'],method='gbm',trControl = trainCon)
+```
+
+Let us now do some prediction with the testing data and see how the predictions fare with the new model.
+
+```{r}
+
+preds <- predict(object=finalBlendModel,testingData[,predictors])
+
+confusionMatrix(testingData[,'label'],preds)
+
+
+```
+So as seen from the results, the accuracy has improved to around 97% with the ensemble methods. This is a good method to try and to explore further.
+
+1. Another method to actually try out is to include the probability of each class as seperate features.

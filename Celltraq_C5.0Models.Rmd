@@ -107,5 +107,7 @@ confusionMatrix(xVal$label,xVal$C5Gridpred)
 
 As seen from the results, only Period2 is all over the place. Other classes are much better than the 
 
-## Tomorrow
-Continue with a new set of algorithm and check results
+## JMJPFU
+## 8-Feb-2017
+
+Let us park this algorithm for now and then get into another algorithm. We will come back to C5 later with more tuning of parameters.
