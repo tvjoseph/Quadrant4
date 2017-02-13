@@ -1,0 +1,71 @@
+---
+title: "JMJPFU_Clustering"
+output: html_notebook
+---
+
+# JMJPFU
+### 13-Feb-2017
+
+In this Notebook, we will try out Non Supervised learning methods for the problem. We will try to do the following
+
+1. Clustering models - KNN & Hierarchical clustering
+2. Transformation of data set and observation of results
+3. Tuning of the KNN & Hierarchical clustering models 
+4. Association mining of the data set.
+
+
+## Clustering Models - KNN
+
+Let us start with the KNN models
+
+
+### Initial tasks : Loading the library files
+
+```{r}
+library(caret)
+library(dplyr)
+library(ggplot2)
+```
+
+### Step 1 : Defining the Train control and metrics
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats = 3)
+
+metric = "Accuracy"
+```
+
+### Step 2 : Building the baseline model
+
+```{r}
+seed = 7
+set.seed(seed)
+
+# Building the model
+
+knnModel <- train(label~.,data=xTrain,metric=metric,method='knn',trControl=trainCon)
+
+summary(knnModel)
+
+```
+
+### Step 3 : First prediction with the baseline model
+
+```{r}
+set.seed(seed)
+
+# Prediction
+
+knnpred <- knn3Train(xTrain[,1:11],xVal[,1:11],xTrain$label,k=9,prob=FALSE) # K=9 is an arbitary K which was used
+
+# Doing the confusion matrix
+
+confusionMatrix(knnpred,xVal$label)
+```
+
+As seen from the predictions, the accuracy and sensitivity values of all other classes are not that promising. We will try tuning the model and checking the results.
+
+# Tomorrow
+
+1. Continue with tuning of KNN
+2. Explore other methods of clustering

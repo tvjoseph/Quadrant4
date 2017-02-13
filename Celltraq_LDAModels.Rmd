@@ -33,8 +33,119 @@ metric= "Accuracy"
 
 ldaModel <- train(label~.,data=xTrain,method='lda',metric=metric,trControl=trainCon)
 
+print(ldaModel)
+
+```
+
+### Step3 : Predicting with the LDA model on the validation set
+
+```{r}
+
+xVal$ldaPred <- predict(ldaModel,newdata = xVal[,1:11])
+
+confusionMatrix(xVal$ldaPred,xVal$label)
+
+```
+# JMJPFU
+### 10-Feb-2017
+
+The predictions produced by the LDA model has been pretty  bad. The accuracy is only 26% . Will try to tune this model further and see if we can do some improvement for this model.
+
+### Strategy 1 : Transformation of the variables
+
+One assumption of LDA is the normality of the data points and also scaling of variables. Let us try both these strategies and see whether there is any dent on the results. 
+
+
+### Visualisation of the variables 
+
+We will resort to visualisation of the variables to decide what kind of transformation is required for the variables
+
+```{r}
+par(mfrow=c(4,3))
+
+for(i in 1:11){
+  
+  hist(xTrain[,i],main = names(xTrain)[i])
+  
+  
+}
+```
+
+Let us also look at the density plot of the dataset to determine what kind of transformation is required for the variables
+
+```{r}
+par(mfrow = c(4,3))
+
+for(i in 1: 11){
+  
+  plot(density(xTrain[,i]),main=names(xTrain)[i])
+  
+}
+```
+Most of the variables have different means and different SD. It will be better to preprocess all the values by scaling and also applying some transformations like Yeo-Johnson
+
+```{r}
+# First creating a new data set
+
+xTrainTran <- xTrain
+xValTran <- xVal
+
+# Creating the transformed data set
+
+featTrans <- preProcess(xTrainTran[,1:11],method=c("range","YeoJohnson"))
+
+print(featTrans)
+
+transTrain <- predict(featTrans,xTrainTran[,1:11])
+transTrain$label <- xTrainTran$label
+
+# Doing the same for the validation set also
+
+featTrans <- preProcess(xValTran[,1:11],method=c("range","YeoJohnson"))
+
+transVal <- predict(featTrans,xValTran[,1:11])
+
+transVal$label <- xValTran$label
 
 
 ```
 
+Visualisation after the transformation
+
+```{r}
+par(mfrow=c(3,4))
+
+for(i in 1:11){
+  
+  plot(density(transTrain[,i]),main=names(transTrain)[i])
+}
+```
+
+Let us try the LDA modelling again after the transformation and see if there is any effect on the accuracy
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats = 3)
+
+metric = "Accuracy"
+
+set.seed(seed)
+
+ldaTranModel <- train(label~.,data=transTrain,metric=metric,trControl=trainCon)
+
+transVal$ldapred <- predict(ldaTranModel,newdata=transVal[,1:11])
+
+confusionMatrix(transVal$ldapred,transVal$label)
+```
+The transformation has done a good job in terms of increasing the accuracy from around 27 to around 87. However , sensitivity has still not gone up for most of the classes. Will try to tune the model further to improve the results.
+
+Unfortunately for LDA there are no tuning parameters available for improve. Another strategy is to try out another model called lda2. This is there in the following link of the caret model
+
+http://topepo.github.io/caret/train-models-by-tag.html#Discriminant_Analysis
+
+
+# Tomorrow
+
+1. Let us try a different model and see how it fares
+2. Try improving the baseline model with tune grid
+3. See what impact it has with transformation of variables
 
