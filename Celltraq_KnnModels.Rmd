@@ -65,7 +65,120 @@ confusionMatrix(knnpred,xVal$label)
 
 As seen from the predictions, the accuracy and sensitivity values of all other classes are not that promising. We will try tuning the model and checking the results.
 
-# Tomorrow
+## JMJPFU
+### 14-Feb-2017
+
+Let us do the following
 
 1. Continue with tuning of KNN
 2. Explore other methods of clustering
+
+### Step 4 : Tuning the parameters with grid
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3)
+metric <- 'Accuracy'
+set.seed(7)
+
+grid <- expand.grid(.k=seq(1,20,by=1))
+
+knnModel2 <- train(label~.,data=xTrain,method='knn',metric=metric,trControl=trainCon,tuneGrid=grid)
+print(knnModel2)
+plot(knnModel2)
+```
+
+Let us now predict with the learned parametes
+
+```{r}
+knnPred2 <- knn3Train(xTrain[,1:11],xVal[,1:11],xTrain$label,k=1,prob=FALSE)
+
+confusionMatrix(knnPred2,xVal$label)
+```
+
+Its not a great model. The accuracy after the grid search has come down also the sensitivity for a lot of the classes has taken a dip.
+
+Let us now try with the preprocessed data for training. Let us try the YeoJohnson transformed data and see how it fares in terms of predictions.
+
+```{r}
+set.seed(7)
+
+knnPred3 <- knn3Train(xTrainTran[,1:11],xValTran[,1:11],xTrainTran$label,k=1,prob = FALSE)
+
+confusionMatrix(knnPred3,xValTran$label)
+```
+Even with the transformed data the result has not improved. Let us try to do a grid search with the transformed data
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3)
+set.seed(seed)
+
+metric='Accuracy'
+
+grid = expand.grid(.k=seq(1,20,by=1))
+
+knnModel3 <- train(label~.,data=xTrainTran,method='knn',metric=metric,tuneGrid = grid,trControl=trainCon)
+
+print(knnModel3)
+
+plot(knnModel3)
+```
+
+
+## JMJPFU
+### 15-Feb-2017
+
+1. Try the methods in the Statistical learning book
+2. Try out some association models for this problem
+
+Before fitting the model, let us try if we can still plot the ROC using twoclasssummary
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3,classProbs=TRUE,summaryFunction=twoClassSummary)
+
+knnModel4 <- train(label~.,data=xTrain,method='knn',trControl=trainCon,preProcess=c("center","scale"),tuneLength=20)
+
+```
+So the above dosent work since there are 9 levels. twoClassSummary works only for binary cases
+
+## Kmeans Clustering
+
+Let us try with kmeans clustering on this data set
+
+```{r}
+batCluster <- kmeans(xTrain[,1:11],9,nstart = 20)
+batCluster
+```
+
+Let us compare the clusters with the labels
+
+```{r}
+table(batCluster$cluster,xTrain$label)
+```
+
+The Kmeans cluster is all over the place in terms of seperating the data. The only plausible output is for the class Period7
+
+Let us also try out Hierarchical clustering methods
+
+```{r}
+
+hierCluster <- hclust(dist(xTrain[,1:11]))
+
+plot(hierCluster)
+```
+
+Let us now prune the clusters at 75 and also 50 and see how they fare
+
+```{r}
+clusterCut75 <- cutree(hierCluster,75)
+
+table(clusterCut75,xTrain$label)
+```
+Let us also try cutting the tree at 50 and see the results
+
+```{r}
+clusterCut50 <- cutree(hierCluster,50)
+
+table(clusterCut50,xTrain$label)
+```
+
+The results are not that great as we can see.
