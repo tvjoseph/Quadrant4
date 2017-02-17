@@ -182,3 +182,7 @@ table(clusterCut50,xTrain$label)
 ```
 
 The results are not that great as we can see.
+
+# Tomorrow
+1. Continue with a different algorithm
+

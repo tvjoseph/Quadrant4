@@ -1,0 +1,21 @@
+---
+title: "JMJPFU-DStoProduction"
+output: html_notebook
+---
+
+# JMJPFU
+### 17-Feb-2017
+
+
+This notebook is a process notebook for the purpose of researching and working out a strategy for implementing Data Science projects in a production environment.
+
+These are the things which needs to be done
+
+1. Go through the complete lifecycle of the Celltraq project and then design a end to end lifecylcle of what needs to be done
+
+
+Reference Resources
+
+https://www.oreilly.com/ideas/what-is-hardcore-data-science-in-practice
+
+
