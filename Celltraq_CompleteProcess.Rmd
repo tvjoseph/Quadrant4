@@ -1,0 +1,83 @@
+---
+title: "JMJPFU-CelltraqProcess"
+output: html_notebook
+---
+
+# JMJPFU
+### 20-Feb-2017
+
+This is the end to end process with all the scripts for creating a prediction model for Celltraq. This involves the following
+
+1. Getting the inputs
+2. Consolidating the inputs
+3. Cleaning the input and creating the consolidated dataset
+4. Feature engineering the consolidated data set for exploratory analysis and modelling
+5. Exploratory analysis 
+6. Model training with the feature engineered dataset and calculating the baseline metrics
+7. Deploying the models on to the platform of choice
+8. Giving predictions as Rest API's from the deployment platform to the client system
+9. Continuous training of the model,model improvement and re-deployment
+
+
+
+### Step 1 : Loading all the library Files
+
+In this step all the library files required for the end to end process are loaded
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(caretEnsemble)
+
+
+
+```
+
+
+### Step 2 : Getting the input files
+
+
+#### Step 2.a : Listing all the input files
+
+The input files for Celltraq are received as csv files. The csv files are consolidated and received as specific files for each parameter. Below are the details about the input files
+
+1. Conductance : 2 Files with names ( "Battery Conductance I.csv")
+2. Voltage and Current : Multiple files with names starting with  ( "Battery Discharge I.csv" )
+3. Voltage and Temperature : Multiple files with names starting with ("Battery Voltage Temperature I.csv")
+
+Points to be noted :
+
+1. How would the input files be given from Celltraq ?
+2. Where will it be stored ?
+3. What format will it be stored ?
+4. Will the format change from time to time ?
+5. Will any of the columns change from time to time ?
+6. Will the seperator within the data change in future ?
+
+#### Step 2.B : Loading the input data sets into the system
+
+The next steps are to load the input files into the system. Listed below are the scripts to load the data
+
+
+```{r}
+
+# Conductance Files
+
+
+condFile1 <- "Battery Conductance I.csv" # Name of files
+condFile2 <- "Battery Conductance II.csv"
+
+path1 <- paste0("C:/Toms/customers/Celltraq/excelfiles/Conductance/",condFile1) # Path of files
+path2 <- paste0("C:/Toms/customers/Celltraq/excelfiles/Conductance/",condFile2)
+
+
+condDf1 <- read.csv(path1,sep="|",header=FALSE)
+condDf2 <- read.csv(path2,sep="|",header=FALSE)
+
+# Discharge Files
+
+```
+
+
+

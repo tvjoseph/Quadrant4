@@ -18,4 +18,22 @@ Reference Resources
 
 https://www.oreilly.com/ideas/what-is-hardcore-data-science-in-practice
 
+# JMJPFU
+### 20-Feb-2017
+
+1. Another option is to deploy your R models and analytical routines as production-ready microservices. The below link will provide details
+
+https://algorithmia.com/developers/clients/r
+
+
+2. The second set of resources which can be consumed are through Domino services as listed here. Need to try it out for free and then experiment with the complete modelling process on Domino.
+
+
+https://blog.dominodatalab.com/building-delivering-risk-models-global-insurance-companies/
+
+
+
+
+
+
 
