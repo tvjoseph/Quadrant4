@@ -46,6 +46,19 @@ The input files for Celltraq are received as csv files. The csv files are consol
 2. Voltage and Current : Multiple files with names starting with  ( "Battery Discharge I.csv" )
 3. Voltage and Temperature : Multiple files with names starting with ("Battery Voltage Temperature I.csv")
 
+
+Process for loading the Files
+
+1. Load each type of file in seperate folder ( Seperate folder for Conductance, Seperate folder for Discharge, Seperate folder for volt temp)
+2. Conductance data has 15 variables, Discharge has 12 variables and volt temp has 20 variables
+3. Create an empty dataframe with names as per the list of variables in the excel sheet
+4. Get the list of files in each folder
+5. Run over the list as an iterator and read each file using read_csv and store each file into a temperory variable. The names of the temperory variable has to be the same as the number of columns in the excel sheet.
+6. Rbind each of the read temperory file with the empty dataframe which was created.
+7. This will create a consolidated data frame for each of the variables.
+
+
+
 Points to be noted :
 
 1. How would the input files be given from Celltraq ?
@@ -64,7 +77,6 @@ The next steps are to load the input files into the system. Listed below are the
 
 # Conductance Files
 
-
 condFile1 <- "Battery Conductance I.csv" # Name of files
 condFile2 <- "Battery Conductance II.csv"
 
@@ -75,9 +87,147 @@ path2 <- paste0("C:/Toms/customers/Celltraq/excelfiles/Conductance/",condFile2)
 condDf1 <- read.csv(path1,sep="|",header=FALSE)
 condDf2 <- read.csv(path2,sep="|",header=FALSE)
 
+# The first row of each of the data frames the battery id is distorted
+
+condDf1$Unique_ID[1] <- paste(condDf1$Unique_ID[2])
+condDf2$Unique_ID[1] <- paste(condDf2$Unique_ID[2])
+
+names(condDf1) <- names(condDf1) <- c("Unique_ID","Site_Name","Plant_Name","String_Name","Battery_no","Measurement_Timestamp","Conductance","Conductance_High_Alarm","Conductance_High_Warning","Conductance_Low_Warning","Conductance_Low_Alarm","Manufacturer","Model","Battery_Type","Battery_Voltage")
+
+```
+
+Readinng the Battery discharge data. The number of files are large. So have to set a path and read in the data
+
+```{r}
+
 # Discharge Files
+
+filename <- list.files(path = "C:/Toms/customers/Celltraq/excelfiles/Discharge")
+# Creating an empty data frame
+dischargeDf1 <- data.frame(matrix(nrow=0,ncol= 12)) # Creating an empty data frame
+colnames(dischargeDf1) <- c("Unique_ID","Site_Name","Plant_Name","String_Name","Battery_no","Measurement_Timestamp","Voltage","Current","Manufacturer","Model","Battery_Type","Battery_Voltage"  )# Naming the data frame
+
+for(i in 1:2){
+  
+  temppath <- paste0("C:/Toms/customers/Celltraq/excelfiles/Discharge/",filename[i])
+  
+  temp_discharge <-  read.csv(temppath,sep="|",header=FALSE) # Reading in the file
+  temp_discharge[1,1] <- paste(temp_discharge[2,1]) # The first record for battery id is always in a bad format. So repasting from the second record
+  colnames(temp_discharge) <- c("Unique_ID","Site_Name","Plant_Name","String_Name","Battery_no","Measurement_Timestamp","Voltage","Current","Manufacturer","Model","Battery_Type","Battery_Voltage"  ) # naming the data frame
+  dischargeDf1 <- rbind(dischargeDf1,temp_discharge) # Condolidating data from each file
+  
+} # End of for loop for consolidating all the data
+
+```
+
+### Points to be noted
+1. How do we ensure scalability as the data points are large for the discharge data ?
+2. Do we consolidate all data into one DF or multiple DFs ?
+3. What are the challenges when the number of records keep on growing ?
+4. Can we eliminate the old data ? Or keep them into a storage for future use ?
+5. Ideally the prediction job is done once in three months, so do we store all the required data for three months in one DF ?
+6. If the format of the csv is changed then the read_csv in line 94 has to be changed.
+
+
+```{r}
+# Voltage and Temperature files
+
+volttempDf1 <- data.frame(matrix(nrow=0,ncol= 20))
+
+colnames(volttempDf1) <- c("Unique_ID","Site_Name","Plant_Name","String_Name","Battery_no","Measurement_Timestamp","Voltage","Voltage_High_Alarm","Voltage_High_Warning","Voltage_Low_Warning","Voltage_Low_Alarm","Temperature","Temperature_High_Alarm","Temperature_High_Warning","Temperature_Low_Warning","Temperature_Low_Alarm","Manufacturer","Model","Battery_Type","Battery_Voltage" )
+
+filename <- list.files(path = "C:/Toms/customers/Celltraq/excelfiles/VoltageTemp")
+
+
+for(i in 1:2){
+  
+  temppath <- paste0("C:/Toms/customers/Celltraq/excelfiles/VoltageTemp/",filename[i])
+  
+  temp_voltemp <-  read.csv(temppath,sep="|",header=FALSE)
+  temp_voltemp[1,1] <- paste(temp_voltemp[2,1])
+  colnames(temp_voltemp) <- c("Unique_ID","Site_Name","Plant_Name","String_Name","Battery_no","Measurement_Timestamp","Voltage","Voltage_High_Alarm","Voltage_High_Warning","Voltage_Low_Warning","Voltage_Low_Alarm","Temperature","Temperature_High_Alarm","Temperature_High_Warning","Temperature_Low_Warning","Temperature_Low_Alarm","Manufacturer","Model","Battery_Type","Battery_Voltage" )
+  volttempDf1 <- rbind(volttempDf1,temp_voltemp)
+}
+
+
+
+```
+
+Notes
+1. How do we tackle the scalability of the data? The number of values can be large.
+2. How often do we consolidate this data ?
+3. Do we create a data store to store all these data points ? Ideally a data store should be made which should be leveraged later.
+4. How do we ensure that all the columns required are there ? 
+5. How do we ensure that the column names do not change.
+6. How do we deal if a new data column is introduced ?
+7. What is the source for these files ? 
+8. In what format will these files be received ?
+9. Will the structure of the data change ?
+10. Do we need to change the data read method if a common data store is fixed to dump the data.
+11. Understand the process by which the data points are generated from the measuring devices.
+
+
+#### Step 3: Consolidating all the variables of each battery in a single data frame
+
+The purpose of this step is to get a consolidated dataset for each battery accross the three key metrics i.e - Conductance, Discharge and Volt temp. A consolidated data set for each battery will also serve the purpose of good visualisations accross each battery accross the various periods. This can be taken as a micro service later on.
+
+The various variables that are involved in the process are the following
+
+1. Conductance - From the seperate file for conductance
+2. Discharge - From the seperate file for discharge
+3. Volttemp - From the seperate file for Volttemp
+4. Discharge - Whether the voltage slope is for discharge or charge. This is a derived variable. Process explained below
+5.Charge - Whether the voltage slope is for discharge or charge. A derived variable. Process explained below
+6. DOD - Depth of discharge. A derived variable. Process explained below
+7. Temperature - From seperate file for Volttemp
+8. Voltage - Normal voltage. From seperate file for Volttemp
+
+
+Process for the complete procedure
+
+1. Create a list of batteries for which the consolidated dataframe needs to be created. This list can be taken from the unique list of all batteries for the client involved. ( lines : 187:)
+
+
+
+
+```{r}
+# Creating the list of batteries
+
+batList <- list(unique(condDf1$Unique_ID),unique(condDf2$Unique_ID))
+
+batList <- unlist(batList[[1]])
+batList[1:10]
 
 ```
 
 
 
+
+```{r}
+
+# The complete data frame for calculating the new data frame
+
+bat_newfeat5 <- data.frame(matrix(nrow=0,ncol=9)) # 25 Oct bat_newfeat5
+
+colnames(bat_newfeat5) <- c( "Measurement_Timestamp","Variable","measure","Date","Date1","Battery","Plant","Site","String")
+```
+
+
+
+
+### Points to be carried over
+1. In the production environment, do we create seperate models for each client ? Or do we do the modelling based on the consolidated data for all clients ?
+
+
+## Tomorrow
+1. Continue with the process creation
+2. Complete with the end to end process
+3. List down the process of all functions
+4. List out the processes which have to be developed with other methods and which have to be done in R
+5. List out methods for accessing R models
+6. List out frequency of R model creation
+7. List out frequency of how each file is created and accessed
+8. List out what would be the output in the final client dashboard
+9. Decide weather client specific model has to be created or a consolidated model for all data.
+
+2. 
