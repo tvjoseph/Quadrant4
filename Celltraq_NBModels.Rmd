@@ -1,0 +1,82 @@
+---
+title: "JMJPFU-NaiveBayes"
+output: html_notebook
+---
+
+# JMJPFU
+## 22-Feb-2017
+
+This notebook is for demonstrating the Naive Bayes method for modelling. 
+
+### Initial task
+
+Let us load the library functions
+
+```{r}
+library(caret)
+library(dplyr)
+library(ggplot2)
+```
+
+### Step1: Train control various methods
+
+Let us try different methods of train control. We will use the following methods
+
+1. Bootstrapset.seed(7)
+
+2. K-fold cross validation
+3. Repeated k-fold cross validation
+4. Leave one out cross validation
+
+```{r}
+set.seed(7)
+# Bootstrap
+trainBoot <- trainControl(method='boot',number=100)
+# Kfold
+trainKfold <- trainControl(method="cv",number=10)
+gridKfold <- expand.grid(.fL=c(0),.usekernel=c(FALSE))
+# Repeated K-fold cross validation
+trainRep <- trainControl(method="repeatedcv",number=10,repeats=3)
+# Leave one out cross validation
+trainLoo <- trainControl(method="LOOCV")
+
+metrics='Accuracy'
+
+```
+
+### Step2 : Training the model and Predicting on validation set
+
+```{r}
+# Model with Bootstrap cv
+modelBootNB <- train(label~.,data=xTrain,method='nb',metrics=metrics,trControl=trainBoot)
+# Model with kfold - Did not work
+#modelKfold <- train(label~.,data=xTrain,method="nb",trControl=trainKfold,tuneGrid=gridKfold,metrics=metrics)
+# Model with Repeated cv
+modelRepeat <- train(label~.,data=xTrain,method="nb",trControl=trainRep,metrics=metrics)
+# model with leave one out CV . This also did not work properly
+#modelLoocv <- train(label~.,data=xTrain,method="nb",trControl=trainLoo,metrics=metrics)
+```
+
+## JMJPFU
+### 23-Feb-2017
+
+Now that we have the base models let us try out prediction on the validation set
+
+```{r}
+xVal$bootPred <- predict(modelBootNB,newdata = xVal[,1:11])
+
+confusionMatrix(xVal$bootPred,xVal$label)
+```
+
+Let us now try our hands with the other model and see how it fare
+
+```{r}
+xVal$repPred <- predict(modelRepeat,newdata = xVal[,1:11])
+
+confusionMatrix(xVal$repPred,xVal$label)
+```
+
+Both the models have the same accuracy rates, which is obvious as its only the re-sampling method which has varied. The sensitivity which has been achieved is much better than some of the other methods which were earlier used. Another means of improvement can be through transformation of the data sets. Let us try that next.
+
+# Tomorrow
+1. Modelling with NB after transformation of the dataset.

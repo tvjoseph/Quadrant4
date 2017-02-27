@@ -1,0 +1,340 @@
+---
+title: "JMJPFU-CelltraqFunctions"
+output: html_notebook
+---
+
+# JMJPFU
+### 22-Feb-2017
+
+### Function 1 - bat_select
+
+The purpose of this function is to get a consolidated data for all batteries. The process followed for this function is as follows
+
+1. Input to the Function  is 'battery' which is the unique ID for a single battery and also the three dataframes pertaining to the three variables ( Conductance, discharge, voltTemp)
+2. Filter the relevant data of the battery which is passed from the three variable data frames
+3. The next steps are the ones for consolidating the relevant data which is taken from individual files to a single data frame. The procedure is as follows. From the filtered data of the relevant battery the time stamp data and the data for the relevant variable is selected ( voltage, current, conductance , temperature & terminalvoltage). Each of these are stored to a dataframe. One aspect to note here is, the current variable, elimination of outliers is done here in this step. In addition to the time stamp and the relevant variable and new variable is also introduced called "measure". The data stored in this variable is a character, which is the name of the variable which is selected. The purpose of this character data point is to aid in filtering and also during visualisation as seperate grids.
+4. In the next step, the names of the respective columns are standardized. It is to be noted that all the data frames will have 3 columns each
+5.In the next step all the 5 different dataframes are consolidated to get a single dataframe. This dataframe will have three columns namely ( Timestampdata, variable, measure)
+
+6. After the above step, two new variables on dates are generated. One variable 'Date' has only the yyyymmdd format and the other variable 'Date1' will have the time also included with the dates
+7. The else condition is actually a redundant step. Why it was introduced was, in the initial period when the data frame was created, we couldnt consolidate the data pertaining to voltTemp because of scalability issues. So some of the batteries did not have the volt-Temp data. In such scenarios the function was failing. This was the reason the below step was introduced to make dataframe by eliminating the 'terminalvoltage' variable and the 'temperature' variable
+8. The final output from the function is the consolidated dataframe created either with the if condition or the else condition. This dataframe will have 5 variables in total.
+
+
+```{r}
+
+bat_select <- function(battery,conDf,disDf,voltempDf){ # Give the name of the battery where the dataframe has to be developed
+  
+  # battery : The input for this function is required as a character. This is the unique ID of a single battery
+  # conDf : Passing the conductance Data frame
+  # disDf : Passing the discharge data frame
+  # voltempDf : Passing the volt temp data frame
+  
+  
+  
+  # Taking the conductance data
+  filt4 <- conDf %>% filter(Unique_ID == battery) # filt1 > conDf
+  filt4 <- unique(filt4) # To remove duplicate data if any
+  # Taking the discharge data
+  Temp_bat <- disDf %>% filter(Unique_ID == battery) # Battery_discharge > disDf
+  Temp_bat <- unique(Temp_bat) # To remove duplicate data if any
+  # Taking the volttemp data
+  Temp_bat_sec <- voltempDf %>% filter(Unique_ID == battery) # Battery_voltemp > voltempDf
+  Temp_bat_sec <- unique(Temp_bat_sec) # To remove duplicate data if any
+  
+  # Consolidating all info together
+  
+  if(nrow(Temp_bat) > 0 & nrow(Temp_bat_sec)>0 & nrow(filt4) > 0){
+    
+    Temp_bat1 <- Temp_bat %>% select(Measurement_Timestamp,Voltage)
+    Temp_bat1$measure <- "Voltage"
+    
+    Temp_bat2 <- Temp_bat %>% filter(Current < 50) %>% select(Measurement_Timestamp,Current)
+    Temp_bat2$measure <- "Current"
+    
+    Temp_bat3 <- filt4 %>% select(Measurement_Timestamp,Conductance)
+    Temp_bat3$measure <- "Conductance"
+    
+    Temp_bat4 <- Temp_bat_sec %>% select(Measurement_Timestamp,Temperature)
+    Temp_bat4$measure <- "Temperature"
+    
+    Temp_bat5 <- Temp_bat_sec %>% select(Measurement_Timestamp,Voltage)
+    Temp_bat5$measure <- "Volttemp"
+    
+    colnames(Temp_bat1) <- colnames(Temp_bat2) <- colnames(Temp_bat3) <- colnames(Temp_bat4) <- colnames(Temp_bat5) <- c("Measurement_Timestamp","Variable","measure")
+    
+    Temp_bat_consol <- rbind(Temp_bat1,Temp_bat2,Temp_bat3,Temp_bat4,Temp_bat5)
+    
+    # Date variables
+    
+    Temp_bat_consol$Date <- as.Date(as.character(Temp_bat_consol$Measurement_Timestamp))
+    
+    Temp_bat_consol$Date1 <- as.POSIXct(as.character(Temp_bat_consol$Measurement_Timestamp))
+    
+  } # End of the if file when all data sets are available
+  
+  else if(nrow(Temp_bat) > 0 & nrow(Temp_bat_sec)==0){
+    
+    Temp_bat1 <- Temp_bat %>% select(Measurement_Timestamp,Voltage)
+    Temp_bat1$measure <- "Voltage"
+    
+    Temp_bat2 <- Temp_bat %>% filter(Current < 50) %>% select(Measurement_Timestamp,Current)
+    Temp_bat2$measure <- "Current"
+    
+    Temp_bat3 <- filt4 %>% select(Measurement_Timestamp,Conductance)
+    Temp_bat3$measure <- "Conductance"
+    
+    colnames(Temp_bat1) <- colnames(Temp_bat2) <- colnames(Temp_bat3) <- c("Measurement_Timestamp","Variable","measure")
+    
+    Temp_bat_consol <- rbind(Temp_bat1,Temp_bat2,Temp_bat3)
+    
+    # Date variables
+    
+    Temp_bat_consol$Date <- as.Date(as.character(Temp_bat_consol$Measurement_Timestamp))
+    
+    Temp_bat_consol$Date1 <- as.POSIXct(as.character(Temp_bat_consol$Measurement_Timestamp))
+    
+  } # End of the if condition when there is no data in the VT file
+  
+  Temp_bat_consol # Returning the data frame
+  
+  
+} # End of the function
+
+
+
+```
+
+
+# JMJPFU
+### 24-Feb-2017
+
+### Function 2 - bat_features
+
+This function is again called during the process of consolidating the variables for a battery. This function is used to extract other derived variables of the battery. The detailed process of this function is as below
+
+Process of bat_features:
+
+1. The variables which are passed for the function are the following
+  bt - This is a integer number which indicates the number of dates where the discharge readings are taken
+  bat_test : This is a dataframe which has the dates where the discharge readings are taken
+  Temp_bat_consol : This is the dataframe which contains all the data for the battery
+  float_volt : This is a number which indicates the float voltage of the type of battery which is being analysed.
+2. First an empty data frame is created for consolidating the data pertaining to the variables of the battery. The names of    the empty data frame is set the same as the battery data frame which was passed to it
+3. A loop is started to loop over the number of dates which are there where discharge voltage is measured.
+  3.1 : The dates are first taken from the bat_test data frame which is passed as per the current iteration
+  3.2 : Take all the relevant data for the date which is selected from the battery consolidated data
+  3.3 : Filter out only the voltage data first for further processing. Eliminate any "NA" values through complete.cases              command. 
+  3.4 : The next step is to take the voltage data frame and the find the difference in voltage between the subsequent row and         the current row. The voltage data is listed as per the timestamp. So the intention of doing this step is to find out         if there are any variation in the voltage between the subsequent time and the current time. The difference of voltage         is stored in a new variable created in the voltage data frame.
+  3.5 : In the next step another inner loop is started. The intent of starting the loop is to find transition points from +ve         to -ve or viceversa from the difference of the voltage calculated in the earlier step. The trainsition points are            required to determine whether the voltage under question is a discharge or charge in a later step. If a subsequent           voltage is lesser than the          current voltage then it is a discharge scenario viceversa for charge. The pupose          of the inner loop as mentioned here is to find all instances of transition. 
+  
+        What the inner loop does is the following
+        1. Multiply the differences calcualted in the earlier step. The idea behind multiplicating the difference is to find          transition points which will be denoted by a -ve value after the multiplication step. 
+        2. We will denote a point as transition or change only if the multiplication is -ve or 0. The negative case can occur           if the adjacent differences have different signs. 0 can happen when one of the differences is 0 and the other is a           +ve or -ve value.
+        3. Once the inner loop is executed, the temp_volt data frame had an additional column called "Sign" which indicates            the points where the sign of the difference changes from +ve to -ve or viceversa.
+        4. In the next step this data frame is filtered to get only those data points which show sign change.
+4 . Once the data frame which contains only the trainsition points of voltage is got, as per the previous step 3, the next step is to find out the depth of discharge values between each set of transition points. The process for calculating the depth of discharge values are as follows
+  4.1 : There are three distinct sets of transiton sets. The first set is the first transition point. The second set is the last transition point and the third set is the inbetween transition points.
+  4.2 : For the first transition point, the time stamp at which the transition has happened and the first time stamp when the reading was taken for the relevant date are taken. All the voltage readings between these two time stamps is taken and the minimum value of voltage between these time frame is taken. The minimum value of voltage between these transition point is divided by the float voltage to calculate the Depth of discharge attained between this time frame.Another variable which is calculated is the slope of the voltage. The slope is calculated by just subtracting the voltage at the first time stamp within the range and the voltage at the last time stamp of the range.
+  4.3 : For the last transition point, the time stamp when the last transition happened and the last time stamp for the particular date is taken. All voltage readings between these two time frames are taken and the minimum value is identified. The minimum value is divided by the float voltage to calculate the depth of discharge. The slope is also calculated within the range.
+  4.4 : For the inbetween transition points, the relevant transition point time stamp and the time stamp just before that transition point are taken. For eg. if the transition point is the 2nd transition point, the time stamp for the 2nd transition point and the time stamp for the first transition point are taken. The voltage values between all the time stamps between these two time stamps are taken. The minimum voltage is also taken. The minimum voltage is didvided by the float voltage to get the depth of discharge.The slope is also calculated within the range.
+  4.5 : One aspect to note is that the time difference between various time stamps are taken as seconds. If in future the time stamp value changes or the format changes, then there could be issues in this operation. So precaution of requirements have to be specifically identified for this operation.
+  4.6 : Once this loop is run, a new data frame called temp_volt_set1 is created with 10 variables, which includes the time difference between two transition points in seconds, The difference between voltage values between the ranges of the transition points and also the depth of discharge between two of the transition points
+5.0 : The entire step 4 for is for a condition that there are transition points with respect to the values of voltage. However if the voltage values do not vary between the dates, then there would be no transition points. In such case, the voltage between the entire date where the discharge reading is taken is taken into consideration. The calculation of slope and the DOD is based on the entire range of time stamps for this date.
+6.0 Once the DOD and slope is calculated, the next step is to filter the relevant data frame for time difference greater than 0. Once this new data frame is calculated "temp_volt_set2", the real slope is calculated which is the earlier slope divided by the time difference between each ranges.
+7.0 : Once the real slope is calculated, then a classification of the profile is also done ( Discharge or charge). The first slope (slp) was calculated by subtracting the first value of voltage in range with the last value of voltage in range. So if the slp value is positive, then the profile name is "Discharge" and when it is viceversa it is "charge". 
+8.0 Once the relevant variables are calculated, the next task is to create seperate data sets with the relevant variables in the consolidated data frame format ( with 5 columns).
+9.0 : It needs to be noted that the DOD is taken only when the profile is discharge. So all values where the profile is discharge is filtered and the 'dd' value is taken as the depth of discharge for the battery.
+10.0 : Once everthing is completed, all the variables are consolidated and a new data frame with 5 variables is got as output.
+        
+
+```{r}
+
+bat_features <- function(bt,bat_test,Temp_bat_consol,float_volt){
+  
+  # bt - This is a integer number which indicates the number of dates where the discharge readings are taken
+  # bat_test : This is a dataframe which has the dates where the discharge readings are taken
+  # Temp_bat_consol : This is the dataframe which contains all the data for the battery
+  # float_volt : This is a number which indicates the float voltage of the type of battery which is being analysed.
+  
+  # Creating a data frame for consolidating accross all the dates
+  
+  temp_volt_all <- data.frame(matrix(nrow=0,ncol = 5)) 
+  
+  colnames(temp_volt_all) <- names(Temp_bat_consol) # naming the temp data frame
+  
+  # Looping over all the battery cases of discharge voltage
+  
+  for(i in 1:bt){
+    # Getting the dates where the discharge profiles are calculated
+    temp_dt <- paste(bat_test[i,1]) 
+    # Taking all the data pertaining to that date
+    Temp_bat_spot2 <- Temp_bat_consol %>% filter(Date == temp_dt ) 
+    # Getting the voltage data
+    temp_volt <- Temp_bat_spot2 %>% filter(measure == "Voltage")
+    temp_volt <- temp_volt[complete.cases(temp_volt),]
+    
+    # Looping over all the voltage data so as to find difference between voltage so as to see transition areas
+    
+    for(j in 1:(nrow(temp_volt)-1)){
+      
+      temp_volt$voltdiff[j] <- temp_volt$Variable[j+1] - temp_volt$Variable[j]
+    }
+    
+    cou <- 0
+    
+    temp_volt$sign <- NA
+    
+    for(k in 1:(nrow(temp_volt)-1)){
+      
+      mult <- temp_volt$voltdiff[k] * temp_volt$voltdiff[k+1] # Doing a multiplication to find transition areas
+      
+      if(mult <=0){
+        
+        if(mult < 0){
+          
+          cou <- cou+1
+          
+          temp_volt$sign[k+1] <- paste0("change" ,cou)  }
+        
+        else if(mult == 0 & (temp_volt$voltdiff[k]< 0||temp_volt$voltdiff[k+1]< 0) ){ 
+          
+          cou <- cou+1
+          
+          temp_volt$sign[k+1] <- paste0("change" ,cou) 
+          
+        } # End of the else if statement
+        
+      } # If statement if mult < 0
+    } # End of for loop for looping over all temp_volt data
+    
+    # Use the above data of sign and difference in voltage to calculate the slopes and depth of discharge
+    
+    temp_volt_set1 <- temp_volt %>% filter(!is.na(temp_volt$sign)) # taking only those values where the transition happens
+    
+    # Looping over all the sets where there is a transition
+    
+    # Do the next loops only if there is a sign change
+    
+    if(nrow(temp_volt_set1) > 0){
+      
+      for(i in 1:nrow(temp_volt_set1)){
+        
+        # For the first transition calculating the time difference and the difference between the variable values
+        
+        if(i==1){temp_volt_set1$timediff[i] <- as.numeric(difftime(temp_volt_set1$Date1[i],temp_volt$Date1[1], units = "secs"))
+        temp_volt_set1$slp[i] <- temp_volt$Variable[1]-temp_volt_set1$Variable[i]
+        
+        temp_range <- min(temp_volt %>% filter(Date1 >= temp_volt$Date1[1] & Date1 <= temp_volt_set1$Date1[i]  ) %>% select(Variable))
+        
+        temp_volt_set1$dd[i] <- (temp_range/float_volt)
+        
+        }
+        # For the Last transition calculating the time difference and the difference between the variable values
+        else if(i==nrow(temp_volt_set1)){temp_volt_set1$timediff[i] <- as.numeric(difftime(temp_volt$Date1[nrow(temp_volt)],temp_volt_set1$Date1[i], units = "secs"))
+        temp_volt_set1$slp[i] <- temp_volt_set1$Variable[i] - temp_volt$Variable[nrow(temp_volt)]
+        temp_range <- min(temp_volt %>% filter(Date1 <= temp_volt$Date1[nrow(temp_volt)] & Date1 >= temp_volt_set1$Date1[i]) %>% select(Variable))
+        
+        temp_volt_set1$dd[i] <- (temp_range/float_volt)
+        
+        }
+        # For all inbetween transitions calculating the time difference and the difference between the variable values
+        else{temp_volt_set1$timediff[i] <- as.numeric(difftime(temp_volt_set1$Date1[i],temp_volt_set1$Date1[i-1], units = "secs"))
+        temp_volt_set1$slp[i] <- temp_volt_set1$Variable[i-1] - temp_volt_set1$Variable[i]
+        temp_range <- min(temp_volt %>% filter(Date1 <= temp_volt_set1$Date1[i] & Date1 >= temp_volt_set1$Date1[i-1]) %>% select(Variable))
+        
+        temp_volt_set1$dd[i] <- (temp_range/float_volt)
+        
+        }
+        
+        
+      }
+      
+      
+    } # End of If Loop to check if there is a changing profile
+    
+    else{
+      
+      temp_volt_set1 <- temp_volt[nrow(temp_volt),]
+      
+      temp_volt_set1$timediff <- as.numeric(difftime(temp_volt$Date1[nrow(temp_volt)],temp_volt$Date1[1], units = "secs"))
+      
+      temp_volt_set1$slp <- temp_volt$Variable[1]-temp_volt$Variable[nrow(temp_volt)]
+      
+      temp_range <- min(temp_volt %>% filter(Date1 >= temp_volt$Date1[1] & Date1 <= temp_volt$Date1[nrow(temp_volt)]  ) %>% select(Variable))
+      
+      temp_volt_set1$dd <- (temp_range/float_volt)
+      
+    } # End of the else condition if there is no changing profile
+    
+    # Take a subset of only those values where the time is more than 15 seconds
+    
+    #temp_volt_set2 <- temp_volt_set1 %>% filter(timediff > 14)
+    
+    # Creating a new subset for taking all discharge profiles
+    
+    temp_volt_set2 <- temp_volt_set1 %>% filter(timediff > 0)
+    
+    if(nrow(temp_volt_set2) > 0){
+      
+      temp_volt_set2$slope <- temp_volt_set2$slp / temp_volt_set2$timediff
+      
+      # Classifying whether it is a charge or discharge
+      
+      for(i in 1:nrow(temp_volt_set2)){
+        
+        temp <- temp_volt_set2$slp[i]
+        
+        ifelse(temp > 0,temp_volt_set2$profile[i] <- "Discharge",temp_volt_set2$profile[i] <- "Charge")
+        
+      }
+      
+      
+      # Now to make some new variables out of the above readings
+      
+      # Making a new data set for variable as slope
+      
+      temp_volt_set3 <- temp_volt_set2 # Creating a new data set
+      
+      temp_volt_set3$Variable <- temp_volt_set3$slope # Making slope as the variable
+      
+      temp_volt_set3$measure <- temp_volt_set3$profile
+      
+      # Making a new data set only for Depth of discharge
+      
+      temp_volt_set4 <- temp_volt_set2 %>% filter(profile == "Discharge")
+      
+      if(nrow(temp_volt_set4)>0){
+        
+        temp_volt_set4$Variable <- temp_volt_set4$dd
+        
+        temp_volt_set4$measure <- "DOD"
+      }
+      
+      # Combining these two together
+      
+      temp_volt_set <- rbind(temp_volt_set3,temp_volt_set4)
+      
+      temp_volt_set <- temp_volt_set[,1:5]
+      
+      
+      temp_volt_all <- rbind(temp_volt_all,temp_volt_set)
+      
+    } # End of if loop for Temp_volt_set2 > 0
+    
+    
+  
+    
+    } # End of loop for looping over all the time frame for a battery
+  
+  ###########################################################################################################
+  
+ 
+  temp_volt_all # Return the final set
+  
+} # End of the function
+
+
+
+```
+

@@ -87,16 +87,23 @@ path2 <- paste0("C:/Toms/customers/Celltraq/excelfiles/Conductance/",condFile2)
 condDf1 <- read.csv(path1,sep="|",header=FALSE)
 condDf2 <- read.csv(path2,sep="|",header=FALSE)
 
+# Naming the columns
+
+names(condDf1) <- names(condDf2) <- c("Unique_ID","Site_Name","Plant_Name","String_Name","Battery_no","Measurement_Timestamp","Conductance","Conductance_High_Alarm","Conductance_High_Warning","Conductance_Low_Warning","Conductance_Low_Alarm","Manufacturer","Model","Battery_Type","Battery_Voltage")
+
 # The first row of each of the data frames the battery id is distorted
 
 condDf1$Unique_ID[1] <- paste(condDf1$Unique_ID[2])
+
 condDf2$Unique_ID[1] <- paste(condDf2$Unique_ID[2])
 
-names(condDf1) <- names(condDf1) <- c("Unique_ID","Site_Name","Plant_Name","String_Name","Battery_no","Measurement_Timestamp","Conductance","Conductance_High_Alarm","Conductance_High_Warning","Conductance_Low_Warning","Conductance_Low_Alarm","Manufacturer","Model","Battery_Type","Battery_Voltage")
+# Merging both the files
+
+condDf <- rbind(condDf1,condDf2)
 
 ```
 
-Readinng the Battery discharge data. The number of files are large. So have to set a path and read in the data
+Reading the Battery discharge data. The number of files are large. So have to set a path and read in the data
 
 ```{r}
 
@@ -166,8 +173,28 @@ Notes
 10. Do we need to change the data read method if a common data store is fixed to dump the data.
 11. Understand the process by which the data points are generated from the measuring devices.
 
+### Step 3 : Removing the outliers from the data
 
-#### Step 3: Consolidating all the variables of each battery in a single data frame
+Some data points might have outlier values. These have to be removed. Below is the process for getting that done.
+
+
+
+```{r}
+# Eliminating outliers from Conductance values
+condDf1 <- condDf1 %>% filter(Conductance < 10000)
+condDf2 <- condDf2 %>% filter(Conductance < 10000)
+
+# Eliminating outliers from Discharge
+dischargeDf1 <- dischargeDf1 %>% filter(Current < 50 & Current > 0)
+
+
+# Eliminating outliers from volt-temp variable
+
+```
+
+
+
+#### Step 4: Consolidating all the variables of each battery in a single data frame
 
 The purpose of this step is to get a consolidated dataset for each battery accross the three key metrics i.e - Conductance, Discharge and Volt temp. A consolidated data set for each battery will also serve the purpose of good visualisations accross each battery accross the various periods. This can be taken as a micro service later on.
 
@@ -185,18 +212,70 @@ The various variables that are involved in the process are the following
 
 Process for the complete procedure
 
-1. Create a list of batteries for which the consolidated dataframe needs to be created. This list can be taken from the unique list of all batteries for the client involved. ( lines : 187:)
+1. Create a list of batteries for which the consolidated dataframe needs to be created. This list can be taken from the unique list of all batteries for the client involved. ( lines : 187:). This list has to be made as a dataframe as step 3 requires a dataframe to loop over and get batteries
+2. Create an empty dataframe with 9 columns. This data frame is to consolidate the variables of each battery, one by one. The names of the columns are as per line 214
+3. Start an iterative loop to loop over the complete list of batteries as mentioned in step 1. The purpose of this loop is to take one battery at a time and then extract the required features of the batteries from the respective variable files ( Conductance, Discharge & Volt temp). The process inside the iterative loop is as follows
+  3.1 : Store the battery as per the iterative list in a variable. The battery ID will be read from the battery list created         in step 1
+  3.2 : In the second step a seperate function is called 'bat_select'. The process of what the function achieves is as per           the function notebook 'Celltraq_NewFunctions'. The output from this process is a dataframe containing 5 variables (          Timestamp, Variable, Measure, Date, Date1). The Measure variable will have five different values      (Conductance,Voltage,Current,Temperature,Volttemp)
+  3.3 : Once the battery variables are consolidated, the NA values are eliminated 
+  3.4 : The next step in the process is to consolidate other variables related to the voltage like the Charge, Discharge and         depth of discharge profiles from the voltage profiles. This is done through the function called "bat_features". For           running the function, 4 variables are required.
+        1 - A variable called bt. This is got by finding number of instances where the discharge readings are taken
+        2 - bat_test : The real dates where the discharge readings are taken. This is got from the bat_conall dataframe
+        3 - bat_conall : The complete battery data consolidated in step 3.2
+        4 - float_volt : This is the float voltage value for the relevant type of battery which is passed.
+        The details of the process under the function "bat_features" is described in the functions notebook.
+        The output from running the function is a data frame with 5 variables with the measures like ( Charge, discharge and         DOD)
+        
 
 
-
+bt,bat_test,bat_conall,float_volt
 
 ```{r}
 # Creating the list of batteries
 
 batList <- list(unique(condDf1$Unique_ID),unique(condDf2$Unique_ID))
 
-batList <- unlist(batList[[1]])
-batList[1:10]
+batList <- unlist(batList[[1]],batList[[2]])
+
+batList <- data.frame(batList)
+names(batList) <- "Battery"
+
+```
+
+
+# JMJPFU
+# 24-Feb-2017
+
+Let us now take a sample of batteries from the data created so far to test the complete process. The process for taking the batteries is as follows
+
+1. Compare all the three varaible files and take only the batteries present in all the three files.
+
+```{r}
+disbat <- data.frame(unique(dischargeDf1$Unique_ID))
+disbat$dispresent <- 1
+names(disbat) <- "Battery"
+
+# Batteries in volttemp dataframe
+
+voltbat <- data.frame(unique(volttempDf1$Unique_ID))
+names(voltbat) <- "Battery"
+voltbat$volpresent <- 2
+
+# Merging all three files
+
+batSample <- merge(batList,disbat,all.x = TRUE) # First merging with the discharge list
+
+batSample <- merge(batSample,voltbat,all.x = TRUE) # Next merging with the voltage list
+
+batSample$total <- batSample$dispresent + batSample$volpresent # Finding a total where both are present
+
+# Filtering the relevant batteries
+
+batRelevant <- batSample %>% filter(total==3) %>% select(Battery) 
+
+# Replacing the batList variable with batRelevant data
+
+batList <- batRelevant
 
 ```
 
@@ -207,10 +286,100 @@ batList[1:10]
 
 # The complete data frame for calculating the new data frame
 
-bat_newfeat5 <- data.frame(matrix(nrow=0,ncol=9)) # 25 Oct bat_newfeat5
+batConsolidated <- data.frame(matrix(nrow=0,ncol=9)) # 25 Oct bat_newfeat5 > batConsolidated
 
-colnames(bat_newfeat5) <- c( "Measurement_Timestamp","Variable","measure","Date","Date1","Battery","Plant","Site","String")
+colnames(batConsolidated) <- c( "Measurement_Timestamp","Variable","measure","Date","Date1","Battery","Plant","Site","String")
+
+# Looping over the data frame of the batteries where the required trend is required
+
+for(i in 1:length(batList)){ 
+  
+  # First get the battery
+  battery <- paste(batList[i,1]) # batdf1 > batList
+  
+  # Get the consolidated data for all batteries from the function bat_select 
+  bat_conall <- bat_select(battery,condDf,dischargeDf1,volttempDf1) 
+  
+  # Removing any NA values from the battery data frame
+  
+  bat_conall <- bat_conall[complete.cases(bat_conall),]
+  
+  # Finding all the dates where the voltage discharge profile is calculated
+  
+  bat_test <- unique(bat_conall %>% filter(measure=="Voltage") %>% select(Date))
+
+  bt <- nrow(unique(bat_conall %>% filter(measure=="Voltage") %>% select(Date)))
+  
+  # Getting the voltage data for further calculating the charge and Discharge data
+  
+  volt_mean <- bat_conall %>% filter(measure=="Voltage") %>% select(Variable)
+  
+  # Finding the mean value of the voltage for the battery
+  
+  fv <- floor(mean(volt_mean$Variable,na.rm = TRUE))
+  
+  # Finding the float voltage based on teh battery type
+  
+  ifelse(fv < 5,float_volt <- 2.23,float_volt <- 13.4)  # Setting the float voltage
+  
+  # Getting additional features of the battery by running the function bat_features
+  
+  bat_sub <- bat_features(bt,bat_test,bat_conall,float_volt) # Function to get other features
+  
+} # End of the iteration to loop over the list of all batteries
+
+
+
 ```
+
+
+  
+   
+  
+ 
+  
+  
+  
+  
+  
+  bat_conall <- rbind(bat_conall,bat_sub) # Consolidating all the data
+  
+  bat_conall$Battery <- battery # Adding the battery name also
+  
+  bat_others <- unique(filt1 %>% filter(Unique_ID == battery) %>% select(Site_Name,Plant_Name,String_Name))
+  
+  bat_conall$Plant <- bat_others$Plant_Name
+  bat_conall$Site <- bat_others$Site_Name
+  bat_conall$String <- bat_others$String_Name
+  
+  # Combining all the data together
+  
+  bat_newfeat5 <- rbind(bat_newfeat5,bat_conall)
+  
+  print(i)
+  
+
+ Functions required for the above process
+ 
+ 
+```{r}
+
+# Function 
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -219,7 +388,8 @@ colnames(bat_newfeat5) <- c( "Measurement_Timestamp","Variable","measure","Date"
 1. In the production environment, do we create seperate models for each client ? Or do we do the modelling based on the consolidated data for all clients ?
 
 
-## Tomorrow
+## JMJPFU
+## 22-Feb-2017
 1. Continue with the process creation
 2. Complete with the end to end process
 3. List down the process of all functions
