@@ -225,10 +225,13 @@ Process for the complete procedure
         4 - float_volt : This is the float voltage value for the relevant type of battery which is passed.
         The details of the process under the function "bat_features" is described in the functions notebook.
         The output from running the function is a data frame with 5 variables with the measures like ( Charge, discharge and         DOD)
-        
+  3.5 : The output from the "bat_features" function has to be consolidated with the other features extracted with the other          steps.
+  3.6 : Along with the extracted features, other details like the "battery", "site","string" etc are also added to the              dataframe.
+4. Once all the details are extracted, the final consolidated data frame is derived
+  
+       
 
 
-bt,bat_test,bat_conall,float_volt
 
 ```{r}
 # Creating the list of batteries
@@ -292,7 +295,7 @@ colnames(batConsolidated) <- c( "Measurement_Timestamp","Variable","measure","Da
 
 # Looping over the data frame of the batteries where the required trend is required
 
-for(i in 1:length(batList)){ 
+for(i in 1:nrow(batList)){ 
   
   # First get the battery
   battery <- paste(batList[i,1]) # batdf1 > batList
@@ -326,25 +329,13 @@ for(i in 1:length(batList)){
   
   bat_sub <- bat_features(bt,bat_test,bat_conall,float_volt) # Function to get other features
   
-} # End of the iteration to loop over the list of all batteries
-
-
-
-```
-
-
+  # Consolidating all the data
   
-   
+  bat_conall <- rbind(bat_conall,bat_sub) 
   
- 
+  # Consolidating other data elements like "battery" , "Site_name", "Plant_name","String_name" etc
   
-  
-  
-  
-  
-  bat_conall <- rbind(bat_conall,bat_sub) # Consolidating all the data
-  
-  bat_conall$Battery <- battery # Adding the battery name also
+  bat_conall$Battery <- battery 
   
   bat_others <- unique(filt1 %>% filter(Unique_ID == battery) %>% select(Site_Name,Plant_Name,String_Name))
   
@@ -354,22 +345,132 @@ for(i in 1:length(batList)){
   
   # Combining all the data together
   
-  bat_newfeat5 <- rbind(bat_newfeat5,bat_conall)
+  batConsolidated <- rbind(batConsolidated,bat_conall)
+  
+  # Printing the iterator
   
   print(i)
   
-
- Functions required for the above process
- 
- 
-```{r}
-
-# Function 
+  
+} # End of the iteration to loop over the list of all batteries
 
 
 
 ```
 
+# JMJPFU
+### 28-Feb-2017
+
+### Step5 : Creating the dataframe for training and validation
+
+The next step is to take the consolidated data frame and prepare the data set for training the model. There are two subprocesses for this case.
+
+1. Prepare the training set and validation set as per the period model
+2. Filter failure cases from the consolidated data set prepared earlier and then label the training set 
+
+The reason why the second step is necessary is because, in the case of celltraq there was no labelling of data. Because of this we have to resort to data exploration and get the failed cases of batteries.
+
+First we will get into the process of preparing the validation set.
+
+# JMJPFU
+### 2-Mar-2017
+
+### Step 5.a : Preparing the training set and validation set in the proper format
+
+The process for creating the training set from the consolidated data set as defined earlier is as follows
+
+1. Create an empty dataframe which can have 16 columns. The 16 coloumns are decided based on the number of variables that are to be included in the model. Once the variables change the number of columns also change. The names of the variables are also defined in the beginning.
+2. The explanation of the variable names are as follows
+      featDischarge : This is the mean value of the discharge values of the voltage. 
+      conSlope : This is the slope of the conductance values. The slope is calculated by running a linear model for the                       conductance data
+      dodMin : This is the mean value of the depth of discharge values between the date ranges. 
+      Dod50
+      Dod85
+      Dodtop
+      conDrop
+      con50
+      con80
+      contop
+      voltSD
+      Battery
+      Counter
+      Bench1
+      Bench2
+      label
+3. After creating the empty data frame for aggreagating data on the features, a new iterative loop is initiated to start the process of consolidating data. The process within the iterative loop is as follows
+
+  3.1 : Each battery is listed one by one as per the iterative loop.
+  3.2 : The function called "batFeat1" is run to get the training features. The process for "batFeat1" is explained seperately in the functions notebook - "Celltraq_NewFunctions.Rmd". One check which has to be done is that the battery which is being passed into the function has to be present in the consolidated data of the battery. If the battery is not present in the consolidated data frame then the function call will fail. Or this check has to be made in the calling function.
+
+
+
+  
+
+
+
+
+
+```{r}
+
+trainCon <- data.frame(matrix(nrow=0,ncol=16)) # normalCon > trainCon
+
+names(trainCon) <- c("featDischarge","conSlope","dodMin","Dod50","Dod85","Dodtop","conDrop","con50","con80","contop","voltSD","Battery","Counter","Bench1","Bench2","label" )
+
+# An iterative loop is initiated to go over the list of the batteries for which new data frame has to be created
+
+for(i in 1: nrow(normalBats)){
+  # normalBats : This is the list of batteries for which the new data frame has to be created
+  
+  # Listing one battery at a time
+  bat2Exp <- normalBats$Battery[i]
+  
+  # Running the function batFeat1. 
+
+featTest2  <- batFeat1(bat2Exp,batConsolidated,3) # bat_newfeat5 > batConsolidated
+  
+  
+  
+} # End of the iterative loop to go over the list of batteries
+
+
+```
+
+
+
+
+
+
+ #
+  
+
+
+cou = 0
+
+featTest2$label <- NA # Setting up a label
+
+labRec <- round(nrow(featTest2) * 2/3)
+
+testRec <- nrow(featTest2) - labRec
+
+for(j in 1:testRec){
+  
+  featTest2$label[j] <- "To_test"
+} # End of to be tested period for loop records
+
+for(k in (testRec+1):nrow(featTest2)){
+  
+  featTest2$label[k] <- "Normal_Period"
+  
+} # End of Normal period records for loop
+
+
+featTest2[is.na(featTest2$conSlope),2] <- mean(featTest2$conSlope,na.rm = TRUE) # Imputing mean values NA conslope values
+
+normalCon <- rbind(normalCon,featTest2) # Creating a consolidated dataframe
+
+
+
+} # End of outer for loop
 
 
 
@@ -400,4 +501,6 @@ for(i in 1:length(batList)){
 8. List out what would be the output in the final client dashboard
 9. Decide weather client specific model has to be created or a consolidated model for all data.
 
-2. 
+
+# Tomorrow
+1. start with line 444 in the NewFunction notebook
