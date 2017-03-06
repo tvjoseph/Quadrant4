@@ -355,12 +355,55 @@ Explained below is the process for the function
 6. In the next steps, we get relevant datat for the battery for each of the variables , Discharge , DOD, Conductance. The mean value of discharge is also calculated along with the dates where the discharge data was taken. Please note that the discharge data pertains to the data where the voltage shows a discharge profile. This is an extracted feature from the "bat_Features" function. 
 
 For conductance the maximum value at the begining life of the battery is taken. To find the maximum value of the battery, initial 10% of values are taken and then maximum value among this lot is taken as the max value of conductance.
+
 7. In the next step an iterative loop is initiated. The loop is initiated over the data frame of dates which was extracted in step 4. What is being done in the long iteration is to take data of each variable between two adjacent dates and a consolidation metric for the variable is calculated. The consolidation metric differs for each variable. The consolidation metric for each variable and the dynamics of the iterative loop is explained next.
   7.1 : The iteration starts from the last date and then iterates in the descending value of the dates. So as a first step the date as per the iteration is taken and is called the 'bench_date", meaning the benchmark date. After the bench mark date is taken from the dates data frame the date just before that in the data frame is also taken by subtracting 1 from the iterator. The idea of taking the previous date is to get data for the relevant variable between these date ranges. 
+  
   7.2 : First a check is done if the date taken as the iterator is the last date of the dates data frame "temp_dates". If this is the last date then the previous date is also taken as bench_date2 and all data after the bench_date2 is taken for the relevant variable. The rationale for taking all the data is to make up for any deficiency in variable data after the last date.
   7.3 : First an empty data frame is created for consolidating data. The first variable that is consolidated is the discharge data. All data after the second bench mark date is taken. The mean value of this data is taken as the feature. If there is no data after the selected benchmark date, then the mean value of discharge for the complete data is imputed. This feature is "cbinded" into the empty data frame. The name of the feature is called "featDischarge"
   7.4 : The second variable that is calculated is the conductance data. The consolidating metric for the conductance data is the slope of conductance. The slope of the conductance between the date range is calculated using a function called "conSlope". The process for this function is explained below before the function code. The variables which are passed for this function are "bench_date","bench_date2","bat_rec > which is the data for the battery which is in the iteration". Once the conductance slope is calculated it is "cbinded" to the earlier data frame which had the discharge data. Now the consolidated data frame has two columns. The name of this variable is "conSlope"
-  7.5 : The next variable which is selected is the depth of discharge "DOD". To extract the feature a function called "dodMin" is run. The variables passed to this function are the date ranges similar to the conductance function and also the data of the battery which pertains to depth of discharge. The detailed process for the function "dodMin" is explained below
+  7.5 : The next variable which is selected is the depth of discharge "DOD". To extract the feature a function called "dodMin" is run. The variables passed to this function are the date ranges similar to the conductance function and also the data of the battery which pertains to depth of discharge. The detailed process for the function "dodMin" is explained below. The result from this step is the minimum values of depth of discharge attained during the date ranges
+  7.6 : The next step is to extract three different variables related to depth of discharge. The three features are "dod50 > This is the % of values within the data range which is lower than 50% of DOD value", "dod85 > This feature shows the % of values between 85% dod and 50% dod", "dodTop > This is the % of values which are greater than 85% of dod". The rationale for extracting these features is as battery degrades we have found to have more values entering the sub optimal levels of 50% and 85%. The objective is to find out how the distribution of dod values are within these three dod ranges. 
+  7.7 : The process for generation of these three features is as follows.
+      1. First the relevant dod values are filtered after the upper bench mark dates.
+      2. A check is done if the filtered data have some records in it.
+      3. If there are records, the total number of records are found out first
+      4. After this the total number of rows which have less than 50%, between 50-85 and more than 85 are found out
+      5. The above values are divided by the total number of rows filtered to get the % values.
+  7.8 : If the check for number of records within the date range come zero, then the mean values of these three variables for the complete battery is imputed.
+  7.9 : The next set of features are those related to conductance. 4 features are extracted for conductance. These are "conDrop > Which is the % drop in conductance within the range of dates from the maximum value in the range.", "con50 > % of value,within the date range, which have dropped more than 50% from the maximum conductance value for the whole battery","con85 > % of values, within the date range, which have conductance values between 50 and 85% of the maximum conducatance value of the battery","conTop > % of values within the date range, which have conductance values more than 85% of the maximum value of conductance of the battery"
+  
+  7.10 : The process of extracting these features are as follows.
+      1. First a check is done if the number of records filtered is more than 0 i.e if there is data within the date range. If there is data within the date range the steps from 2-5 will be carried out for the data within the date range. If there is no data within the date range, then the features extracted from steps 2-5 is done on the complete data of the battery.
+      2. For conDrop > the maximum value within the date range and the mean value within the date range are identified and the drop is represented as the % of drop of the mean value from the maximum value within the date range.
+      3. For other variables con50,con85 and conTop the % of values which have dropped below 50% of the maximum value, between 50 - 85 % of maximum value and greater than 85% of maximum value of conductance of the battery is calculated. 
+      4. Please note that the maximum value of conductance is calculated from the values of conductance which fall in the first 10% life span of the battery. The rationale is that the beginning life of the battery is supposed to be healthy and the values will be more stable during this period.
+      5. Once these individual features are extracted, they are attached to the consolidating data frame.
+      
+      
+7.11 : The next feature is related to the standard deviation of voltage between the date range. The name of the feature is "voltSd > This is the standard deviation of the voltage within the date range which is being analysed.". The rationale for finding the standard deviation is to find how variable the voltage values are within the range. A healthy battery should have lower value of standard deviation i.e the variance in voltage values will be low. A reading counter intuitive to that will indicate some problem with the battery.
+7.12 : The process of extracting the feature is similar to other ranges
+      1. First the relevant data for the date range is filtered
+      2. From the filtered data a check is done if there is any data within the date range. 
+      3. If there is data then the standard deviation of the data within the date range is calculated and is stored in the variable
+      4. If there is no data within the date range, the standard deviation is imputed as 0
+      5. Once the variable is calculated it is named as "voldSD" and then attached with the consolidating data frame.
+      
+      
+ 7.13 : The iterative loop from step 7 is done for three distinct ranges of dates,
+      1 : When the benchmark date is the last date in the dates dataframe and benchmark2 is the penultimate one
+      2. : When the benchmark date is between the last date and the 2nd date in the dates data frame
+      3. : When the benchmark date is the 2nd date in the dates data frame.
+
+The process of extracting features as per steps 7.1 to 7.12 would be the same for these three distinct steps. However the only difference is in the data which is taken for extracting features.
+
+      1. For case 1 the data for extracting features is all the data after benchmark2 date
+      2. For case 2 the data for extracting features is between benchmark2 date and benchmark date
+      3. for case 3 the data for extracting features is all data before and equal to benchmark date. there is no benchmark2         date in this case
+7.14 : Each iterative loop from step 7.1 to 7.12 will generate one record with 15 columns. Each of these records so generated is "rbinded" to another data frame called "batConFeats", which is created in step 2 of the process above. So in effect after each iteration the number of rows of the batConFeats grows and the maximum number of rows for this data frame will be one less than the number of dates in the dates dataframe.
+
+8.0 : Finally the function returns the batConFeats data frame which will have 15 columns and the number of rows will be 1 less than the number of rows present in the dates dataframe.
+  
 
 
 
@@ -940,7 +983,7 @@ conSlope <- function(start_date,last_date,bat_rec){
 ```
 
 
-### Function : dodMin :
+### Function 6 : dodMin : ##############################3
 
 This function is to calculate the features for depth of discharge. The process of this function is as follows
 
@@ -949,8 +992,8 @@ Process for dodMin
 1. The variables passed to this function are the date ranges and the depth of discharge variable data.
 2. An empty data frame is created to store the dod data
 3. The depth of discharge data between the date ranges are filtered.
-4. After filtering the mean of the data is calculated. The mean value is the feature which is extracted for depth of discharge.
-5. A check is done to verify if the dod has data in it. If there is no data within the date ranges, then the mean value of all the data sets for the battery is imputed.
+4. After filtering the mean of the data is calculated. The mean value is calculated to impute data in case there is no data between any date ranges
+5. A check is done to verify if the dod has data in it.If there is data then the minimum value of the dod variable is found out and is stored in the variable month_i_rec. If there is no data within the date ranges, then the mean value of the variable found out in step4 is imputed into the same variable.
 6. The extracted feature is stored in  a data frame and is then returned from the function.
 
 
@@ -976,5 +1019,586 @@ dodMin <- function(start_date,last_date,dod_rec){
   month_consol # Return the consolidated records
   
 } # End of the function
+```
+
+
+# JMJPFU
+### 6-Mar-2017
+
+### Function 7 : batFeat : A function to extract features of batteries
+
+This is another function to extract features of batteries which is thereby used to filter out problematic batteries. The process for this function is as explained below
+
+Process for batFeat function
+
+1. The variables that passed to the function are "bat_list > which is the list of batteries for which features are to be extracted" and "batdf > Which is the consolidated data for all the batteries"
+
+2. First an empty data frame is created with 65 variables. The names of the variables are also defined.
+3. An iterative loop is started over all the batteries from the list
+4. The relevant details of the battery are pasted as per the iteration like, battery id and based on the battery id the relevant records of that battery is filtered from the battery consolidated dataframe.
+5. The unique dates are also extracted and the first date is taken to start feature extraction.
+6. The first feature to be extracted is for the variable discharge voltage. The relevant data is first filtered and then "start date" and the discharge data filtered out is passed to a function called "dis_slope". The detailed process of this function will be found below.
+7. The output after running the above function is a data frame with 15 variables. These variables pertain to the mean value of the discharge slope for a 15 periods of discharge data. Each of the first 4 periods are mean value of discharge data over a period of 6 months for the battery and the next 11 periods are the mean values consolidated for every 3 month period. It has to be noted that if there are no records within any period where discharge data is not present, then a "Nan" value will be passed in the returning data frame.
+8. In the next two steps, the discharge data frame got from step 6 is given names and then the "NaN" values are imputed with "NA" values
+
+9. The next step is to get the conductance slope and intercept terms by running a function "con_slope". The process for "Con_slope" is described near the function. The output we get from this function is a data frame with 30 values which in fact is a pair of slope and intercept for 15 periods. The periods have the same definition as we have seen in the discharge function.
+10. The data frame which we receive from step 9 is named in the next step, starting with the name for intercept and then the slope.
+
+
+11. The next feature which is extracted is for the depth of discharge. The feature which is extracted for dod is the minimum value of dod within the range of dates. The variables which are passed are the start data and the dod values. The output is a data frame with 15 variables related to the minimum dod values for the period in contention. Also note that if the periods of data is not present then the output would be "Inf"
+12. The output of the above function is named and all the "Inf" values are imputed as "NA"
+13. All the features extracted for the three variables are consolidated to the empty data frame.
+14. Once the consolidation is done other details like the battery name, plant name , string etc are also consolidated with the data frame.
+15. The last feature which is also added is the % drop of conductance. So the minimum value of conductance divided by the maximum value of conductance is calculated to make this feature.
+16. The final output is a single record with around 65 variables.
+
+
+```{r}
+# A new function to calculate the features of batteries
+
+batFeat <- function(bat_list,batdf){
+  # batlist is the list of batteries for which we need the data frame
+  # batdf is the consolidated data frame from which we need to take information about the batteries
+  
+  # First create the empty data frame
+  
+  Bat_Feat_new <- data.frame(matrix(nrow=0,ncol=65))
+  colnames(Bat_Feat1_new) <- c("PD1dis","PD2dis","PD3dis","PD4dis","PD5dis","PD6dis","PD7dis","PD8dis","PD9dis","PD10dis","PD11dis","PD12dis","PD13dis","PD14dis","PD15dis","PD1in","PD1sl","PD2in","PD2sl","PD3in","PD3sl","PD4in","PD4sl","PD5in","PD5sl","PD6in","PD6sl","PD7in","PD7sl","PD8in","PD8sl","PD9in","PD9sl","PD10in","PD10sl","PD11in","PD11sl","PD12in","PD12sl","PD13in","PD13sl","PD14in","PD14sl","PD15in","PD15sl","PD1dod","PD2dod","PD3dod","PD4dod","PD5dod","PD6dod","PD7dod","PD8dod","PD9dod","PD10dod","PD11dod","PD12dod","PD13dod","PD14dod","PD15dod","Battery","Plant","Site","String","Condrop")
+  
+  for(i in 1:nrow(bat_list)){
+    temp_bat <- paste(bat_list$Battery[i]) # Take one battery at a time
+    
+    temp_list <- bat_list[i,] # Take all the relevant records of the battery from the battery list
+    # Filter out the relevant data from the battery
+    bat_rec <- batdf %>% filter(Battery == temp_bat)
+    temp_dates <- unique(bat_rec %>% select(Date1)) # Take all the unique dates
+    start_date <- range(temp_dates$Date1)[1] # Calculating the start date so as to extract features every 6 months
+    
+    # First calculate the features related to Discharge slopes
+    
+    dis_rec <- bat_rec %>% filter(measure == "Discharge") # taking only the discharge data
+    
+    dis_df <- dis_slope(start_date,dis_rec) # Calling the function to calculate the discharge slopes
+    
+    names(dis_df) <- c("PD1dis","PD2dis","PD3dis","PD4dis","PD5dis","PD6dis","PD7dis","PD8dis","PD9dis","PD10dis","PD11dis","PD12dis","PD13dis","PD14dis","PD15dis")
+    
+    # Imputing 'NA' to all NaN values
+    
+    for(i in 1:15){
+      
+      if(dis_df[1,i]=="NaN"){dis_df[1,i] <- NA}
+      
+    }
+    
+    # Calculating the Conductance slopes
+    
+    con_df <- con_slope(start_date,bat_rec) # Getting a df with 30 variables for slopes
+    
+    names(con_df) <- c("PD1in","PD1sl","PD2in","PD2sl","PD3in","PD3sl","PD4in","PD4sl","PD5in","PD5sl","PD6in","PD6sl","PD7in","PD7sl","PD8in","PD8sl","PD9in","PD9sl","PD10in","PD10sl","PD11in","PD11sl","PD12in","PD12sl","PD13in","PD13sl","PD14in","PD14sl","PD15in","PD15sl")
+    
+    # Extracting feature for the depth of Discharge
+    
+    dod_rec <- bat_rec %>% filter(measure == "DOD") 
+    
+    dod_df <- dod_max(start_date,dod_rec) # Running the function to find the lowest point of DOD within the period of year
+    
+    # Imputing NA when the DOD is "Inf" value
+    
+    for(i in 1:15){
+      
+      if(dod_df[1,i]==Inf){dod_df[1,i] <- NA}
+      
+    }
+    
+    names(dod_df) <- c("PD1dod","PD2dod","PD3dod","PD4dod","PD5dod","PD6dod","PD7dod","PD8dod","PD9dod","PD10dod","PD11dod","PD12dod","PD13dod","PD14dod","PD15dod")
+    
+    # Condolidating all teh values
+    
+    
+    bat_con1 <- cbind(dis_df,con_df,dod_df) # Condolidating the conductance and discharge data
+    
+    bat_con1$Battery <- temp_bat # Adding the battery name
+    bat_con1$Plant <- temp_list$Plant
+    bat_con1$Site <- temp_list$Site
+    bat_con1$String <- temp_list$String
+    # Getting new features for % drop in conductance from highest to lowest points.
+    
+    con_rec <- bat_rec %>% filter(measure == "Conductance") %>% select(Variable) # taking only the discharge data
+    bat_con1$Condrop <- min(con_rec$Variable,na.rm = TRUE)/max(con_rec$Variable,na.rm = TRUE)
+    
+    # Combining with the original Battery Feature DF
+    
+    Bat_Feat_new <- rbind(Bat_Feat_new,bat_con1)
+    
+    
+    
+  } # End of the for loop
+  
+  
+  Bat_Feat_new
+  
+} # End of the function
+
+############################################################3
+```
+
+
+## Function 8 : dis_slope # Function to calculate discharge slopes
+This is a function to calculate the mean values of the discharge slopes, which were extracted using a function "Bat_Feat". The complete process for this function is as follows
+
+Process for dis_slope function.
+1. The variables which are passed on to this function are the start date when the features have to be extracted and also the relevant records for the discharge data. After the function commences an empty data frame is created.
+2. The number of date ranges within which features have to be extracted is fixed at 15 of which the first 4 would be for a time period of 6 months and the next at a time period of 3 months.
+3. The iteration starts from 1 to 15 and a validation is done whether the iterator is less than or equal to 4. This validation is to factor in the consolidation time period of 6 months for the first 24 months period.
+4. Two date values are taken which are 6 months apart.
+5. The discharge data is filtered between these two date ranges and the mean value of the variable is calculated.
+6. The calculated variable is attached as a feature to the empty data frame.
+7. As seen from step 2, the first iteration was till the iteration of 4. The next iteration is from 5 to 15 and the process remains the same. However the only difference is, the time period will be every 3 months. New variable called "mult" and "cou" are defined to get the consolidation done every 3 month period.
+8. Once the consolidation is complete the consolidated data frame "month_consol" is returned with 15 variables
+
+
+
+```{r}
+
+dis_slope <- function(start_date,dis_rec){
+  
+  # Start_date : The start date from which the features have to be extracted
+  # dis_rec : The data frame containing the discharge data 
+  
+  # Starting a counter for 15 readings i.e 4.5 years of slope
+  month_consol <- data.frame(matrix(nrow=1,ncol=0))
+  
+  for(i in 1:15){
+    if(i <=4){ # For first 4 iteratios
+      
+      month_1 <- start_date + (6*i*30*24*60*60)
+      month_2 <- start_date + (6*(i-1)*30*24*60*60)
+      month_i_rec <- dis_rec %>% filter(Date1 > month_2 & Date1 <= month_1) %>% select(Variable) %>% summarise(avg = mean(Variable,na.rm=TRUE))
+      
+      month_consol <- cbind(month_consol,month_i_rec)
+      cou = 0
+      
+    }else{
+      cou = cou+1
+      mult = (6*i) - (3*cou)
+      month_1 <- start_date + (mult*30*24*60*60)
+      month_2 <- start_date + ((mult-3)*30*24*60*60)
+      month_i_rec <- dis_rec %>% filter(Date1 > month_2 & Date1 <= month_1) %>% select(Variable) %>% summarise(avg = mean(Variable,na.rm=TRUE))
+      
+      month_consol <- cbind(month_consol,month_i_rec)
+      
+      
+    } # End of the else condition
+   
+    
+  } # End of the for loop
+  
+  month_consol # Return the consolidated records
+  
+} # End of the function 
+
+
+```
+
+## Function 9 : con_slope # Function to calculate slope and intercept of conductance data
+
+This function is to calculate the slope of the conductance profile, which will be used as a feature in filtering out the problematic batteries. The process of this function is as follows
+
+Process of con_slope function
+
+1. The variables which are passed to the function are the "start_date > the first date where the readings are recorded" and "bat_rec > This is the conductance data for the relevant battery".
+An empty data frame is created to consolidate all features.
+2. A loop is started till 15. The number fifteen is hardcoded because we are taking relevant data of the battery for 15 periods i.e for the first 2 years data is taken at an interval of every 6 months and after that for a period of 3 months. The reason why this value is hardcoded is because to have a uniform set of features irrespective of weather the dataset contains the relevant data. May be we need to review if all 15 are required later on.
+3.Once the iteration starts there is an if statement which checks the iteration. The first check is whether the iteration is less than or equal to 4. The reason the iteration is for 4 is because we have decided that the first two years i.e 24 months the data will be consolidated for a period of every 6 months.
+4. In the next step, based on the iteration two dates(in second format) are taken which are 6 months apart for filtering data.
+5. Once two month ranges are taken, the data is filtered according to the month ranges and the relevant variable data and Timestamp for all the records within this month range are taken.
+6. A check is done to verify if there is data after the filter on the previous step. If there is data, we take only the data points within 3 standard deviations from the mean so as to eliminate ouliers from the data.
+7. The upper bound of the 3 standard deviation and the lower bound of the value of the variable for the 3 standard deviations are calculated.
+8. Once the upper bound and lower bound values of the variable are calculated, another check is done to verify whether both are the same. The reason to calculate this check is to ensure that the data set has variability. Only if variability is there in the data we would be able to calculate slope and intercept.
+9. If the lower bound value and upper bound values are different, then only those variables which are within this range is selected from the battery records.
+10. Once the values are filtered, a linear model is run with respect to the variables and the time stamp. The intercept and slope of the model are taken as features. These features are attached to the empty data frame.
+11. If the lower bound and upper bound are the same, then "NA" values are imputed to the data frame. This is because if there is no variability we can run a linear model over the data
+12. As seen from step 6 there was a validation step to check if there was data in the battery data frame. If the number of data points are less than 2, we impute "NA" values to the slope and intercept features.
+
+13. As seen from step 3, the validation on the iteration value was for the first 4 iterations as the consolidation of data was for every 6 month period. In the next step, the second validation for values of iteration from 5 to 15 are carried out. The steps followed here are the same as that followed from steps 4-12.
+14. At the end of the function, a consolidated data frame with 15 variables is returned
+
+
+
+
+
+```{r}
+
+############## Function for calculating the Conductance features #################
+
+con_slope <- function(start_date,bat_rec){
+  
+  con_rec <- bat_rec %>% filter(measure == "Conductance")
+  month_consol <- data.frame(matrix(nrow=1,ncol=0))
+  
+  for(i in 1:15){ # 15 because we are taking the data for first 15 sets of data: First 2 years at an interval of every 6 months and after that every 3 months
+    if(i <=4){ # For first 4 iteratios. 4 because the first 2 years we take data at an interval of 6 months 
+      
+      month_1 <- start_date + (6*i*30*24*60*60)
+      month_2 <- start_date + (6*(i-1)*30*24*60*60)
+      month_i_rec <- con_rec %>% filter(Date1 > month_2 & Date1 <= month_1) %>% select(Variable,Measurement_Timestamp)
+      
+      if(nrow(month_i_rec) > 1){
+        # Taking only data which is 3 standard deviation from mean for modelling
+        up <- mean(month_i_rec$Variable) + (3*(sd(month_i_rec$Variable))) # Uppper range
+        low <- mean(month_i_rec$Variable) - (3*(sd(month_i_rec$Variable))) # Lower range
+        
+        if(up != low){
+          month_i_rec <- month_i_rec %>% filter(Variable > low & Variable < up) # Filtering the new data
+          mod1 <- lm(Variable~as.numeric(Measurement_Timestamp),data=month_i_rec) # Modelling
+          int <- data.frame(mod1$coefficients[1]) # Intercept of the readings
+          slp <-  data.frame(mod1$coefficients[2]) # Slope of the reading
+          
+          month_consol <- cbind(month_consol,int,slp)
+          cou = 0
+        }else{
+          int <- data.frame(NA)
+          slp <- data.frame(NA)
+          month_consol <- cbind(month_consol,int,slp)
+          cou = 0
+        }
+        
+      }else{ # If the number of records are less than 2
+        
+        int <- data.frame(NA)
+        slp <- data.frame(NA)
+        month_consol <- cbind(month_consol,int,slp)
+        cou = 0
+      } # End of the else loop when the records are less than 2
+      
+    }else{
+      cou = cou+1
+      mult = (6*i) - (3*cou)
+      month_1 <- start_date + (mult*30*24*60*60)
+      month_2 <- start_date + ((mult-3)*30*24*60*60)
+      month_i_rec <- con_rec %>% filter(Date1 > month_2 & Date1 <= month_1) %>% select(Variable,Measurement_Timestamp)
+      
+      if(nrow(month_i_rec) > 1){
+        # Taking only data which is 3 standard deviation from mean for modelling
+        up <- mean(month_i_rec$Variable) + (3*(sd(month_i_rec$Variable))) # Uppper range
+        low <- mean(month_i_rec$Variable) - (3*(sd(month_i_rec$Variable))) # Lower range
+        
+        
+        # Only if the data show some variability there will be a linear model. Otherwise there will not be any model
+        if(up !=low){
+          month_i_rec <- month_i_rec %>% filter(Variable >= low & Variable <= up) # Filtering the new data
+          mod1 <- lm(Variable~as.numeric(Measurement_Timestamp),data=month_i_rec) # Modelling
+          int <- data.frame(mod1$coefficients[1]) # Intercept of the readings
+          slp <-  data.frame(mod1$coefficients[2]) # Slope of the reading
+          
+          month_consol <- cbind(month_consol,int,slp)
+        }else{
+          int <- data.frame(NA)
+          slp <- data.frame(NA)
+          month_consol <- cbind(month_consol,int,slp)
+        }
+        
+        
+      }else{ # If the number of records are less than 2
+        
+        int <- data.frame(NA)
+        slp <- data.frame(NA)
+        month_consol <- cbind(month_consol,int,slp)
+        
+      } # End of the else loop when the records are less than 2
+      
+      
+      
+    } # End of the else condition
+    
+    
+  } # End of the for loop
+  
+  
+  month_consol # Returning this value
+  
+  
+} # End of the function
+
+
+```
+
+
+## Function 10: dodMax : Function to calculate minimum value of depth of discharge for a time period
+
+The next function is to calculate the minimum value for the depth of discharge profile for each time periods. The name of the function is a little confusing. However, what is calculated is the minimum value of the depth of discharge profile. The process for this function is as follows.
+
+Process for dod_max function:
+
+1. The variables which are passed to this function are "start_date > First date within the data frame of the battery" , "dod_rec > The relevant depth of discharge records for the battery".
+2. An empty data frame is created to consolidate all the features.
+3. An iterator for a period of 15 is initiated. 
+4. A validation is done to check whether the iteration is within the first 4 iterations. During the first 4 iterations the features are extracted for a time period of 6 months each.
+5. Two months which are 6 months apart is taken and the relevant dod data is filterd between these ranges of months.
+6. Minimum value of dod values between these date ranges is calculated. The minimum value of dod is the feature which is extracted.
+7. Once the iterator is greater than 4 till 15 the consolidation of the dod feature is done every 3 months. 
+8. The final out put is a data frame with 15 variables pertaining to dod data.
+
+
+
+
+```{r}
+
+######################### Function to get the DOD data ##########################
+
+dod_max <- function(start_date,dod_rec){
+  # Start_date : The date from which the features are extracted
+  # dod_rec : This is the depth of discharge data which is passed on from which features are extracted
+  
+  # Starting a counter for 15 readings i.e 4.5 years of max DOD
+  month_consol <- data.frame(matrix(nrow=1,ncol=0))
+  
+  for(i in 1:15){
+    if(i <=4){ # For first 4 iteratios
+      
+      month_1 <- start_date + (6*i*30*24*60*60)
+      month_2 <- start_date + (6*(i-1)*30*24*60*60)
+      month_i_rec <- dod_rec %>% filter(Date1 > month_2 & Date1 <= month_1) %>% select(Variable) %>% summarise(Minimum = min(Variable,na.rm=TRUE))
+      
+      month_consol <- cbind(month_consol,month_i_rec)
+      cou = 0
+      
+    }else{
+      cou = cou+1
+      mult = (6*i) - (3*cou)
+      month_1 <- start_date + (mult*30*24*60*60)
+      month_2 <- start_date + ((mult-3)*30*24*60*60)
+      month_i_rec <- dod_rec %>% filter(Date1 > month_2 & Date1 <= month_1) %>% select(Variable) %>% summarise(Minimum = min(Variable,na.rm=TRUE))
+      
+      month_consol <- cbind(month_consol,month_i_rec)
+      
+      
+    } # End of the else condition
+    
+    
+  } # End of the for loop
+  
+  month_consol # Return the consolidated records
+  
+  
+}
+
+############################################
+
+```
+
+
+## Function 11 : batFeatAddn : A function to add some additional features to the battery data.
+
+This function will add some new features to the existing feature map of the batteries. The detiled process for this function is as follows.
+
+Process for batFeatAddn function
+1. The variables which are passed to this function are "Bat_Feat1_new > The feature map extracted after the batFeat function","batdf > Consolidated data for all batteries"
+2. 6 new variables are initiated with value "NA". This pertains to the Dod & Conductance profiles.
+3. First each battery is taken as per the iterator.
+4. For the relevant battery, the DOD data is first filtered out and the variable data is taken. The total number of records in the dod data is then taken.
+5. The next step is to take % of values which are below dod of 50%, % of values between 50% and 85% and % of value above 85%. These values are loaded into the relevant variable created in step 1 of this process.
+6. The next step is to take the Conductanc data. The number of records for the conductance data and also the maximum value of conductance for this battery is also calculated.
+7. The next step is to take % of values of conductance which are 50% of the maximum value, between 50% and 85% and % of values greater than 85%.
+8. The calculated features are stored in the relevant features.
+9. The final feature map with all these values are finally returned with the function
+
+
+
+
+
+```{r}
+
+# Another function to create additional features related to conductance and DOD drops
+batFeatAddn <- function(Bat_Feat1_new,batdf){
+  
+  # Bat_Feat1_new : This is the list of batteries with the features ( 65 nos)
+  # batdf : Data frame which gives all the details of batteries
+  
+  
+  Bat_Feat1_new$Dod50 <- Bat_Feat1_new$Dod80 <- Bat_Feat1_new$Dodtop <- NA
+  
+  Bat_Feat1_new$con50 <- Bat_Feat1_new$con80<- Bat_Feat1_new$contop <- NA
+  
+  for(i in 1:nrow(Bat_Feat1_new)){
+    
+    temp_bat <- paste(Bat_Feat1_new$Battery[i]) # Take one battery at a time
+    
+    #Features for DOD %
+    bat_rec <- batdf %>% filter(Battery == temp_bat & measure == "DOD") %>% select(Variable)
+    # 
+    totdis <- nrow(bat_rec) # No of records with discharge profiles
+    # 
+    dod50 <- nrow(bat_rec %>% filter(Variable < 0.5))
+    dod80 <- nrow(bat_rec %>% filter(Variable <= 0.85 & Variable >= 0.5)) # Changed the value from 0.8 to 0.85 on 4-Jan-2016
+    dodtop <- totdis - (dod50 + dod80)
+    # 
+    Bat_Feat1_new$Dod50[i] <- (dod50/totdis)*100
+    Bat_Feat1_new$Dod80[i] <- (dod80/totdis)*100
+    Bat_Feat1_new$Dodtop[i] <- (dodtop/totdis)*100
+    
+    # Similar conductance drop bands
+    
+    bat_rec <- batdf %>% filter(Battery == temp_bat & measure == "Conductance") %>% select(Variable)
+    
+    totdis <- nrow(bat_rec) # No of records with Conductance profiles
+    
+    conmax <- max(bat_rec$Variable,na.rm = TRUE)
+    
+    con50 <- nrow(bat_rec %>% filter(Variable < (0.5 * conmax)))
+    con80 <- nrow(bat_rec %>% filter(Variable >= (0.5 * conmax) & Variable <= (0.8 * conmax)))
+    contop <- nrow(bat_rec %>% filter(Variable > (0.8 * conmax)))
+    
+    
+    Bat_Feat1_new$con50[i] <- (con50/totdis)*100
+    Bat_Feat1_new$con80[i] <- (con80/totdis)*100
+    Bat_Feat1_new$contop[i] <- (contop/totdis)*100
+    
+    
+    
+  }
+  
+  
+  
+  Bat_Feat1_new # Return the data frame
+  
+  
+  
+} # End of the function
+
+```
+
+
+## Function 12 : condropFeat : A function to calculate the failure drop of conductance
+
+This function is to do a further filter on the conducatance value to see if any drop in conductance is really one which is probable for a failed battery. This function was developed based on an input got from the Celltraq team that for failure cases if the drop of values does not rise above the preceeding values then it is an indicator of a failure case.
+
+Process for condropFeat function
+1. The variables that are passed to this function are the following "batlist > This is a list of battery ids. Note that this is not a dataframe","condf > The consolidated dataset which is passed","thresh : This is a threshold value passed as a parameter","thresh2 > A second threshold value passed as a parameter".
+2. Two empty data frames are created. The first one "confinDf > has 4 columns and lists all the values for the consolidated dataset. This is only for checking.". The second one "failFeat > This has two columns and this data frame has only values equal to the number of batteries in the list. This is the more important list"
+3. The names of the two data frames are then defined.
+4. An iterative step is initiated for all the batteries in the list.
+
+
+
+
+
+```{r}
+
+condropFeat <- function(batlist,condf,thresh,thresh2){
+  # batlist : This is the list of batteries which needs to be passed whose conductance drop needs to be calculated
+  # condf : This is the conductance data frame which has to be passed for calculating the conductance
+  # thresh : This is the threshold drop in conductance which is passed as a parameter 
+  # thresh2 : This is another measure of threshold which should be applied to the subsequent points indicating the value to which those values can rise
+  
+  confinDf <- data.frame(matrix(nrow=0,ncol=4)) # Defining a data frame to consolidate all the results for the batlist
+  failFeat <- data.frame(matrix(nrow=length(batlist),ncol=2)) # Defining another data frame to store the consolidated failure drops
+  names(failFeat) <- c("Battery","FailDrop")
+  secname <- paste0("Drop_",thresh)
+  thirname <- paste0("Dropclass_",thresh)
+  names(confinDf) <- c("Battery","Date1",secname,thirname)
+  
+  
+  for(i in 1:length(batlist)){
+    
+    
+    tempBat <- batlist[i] # Take one battery at a time
+    
+    failFeat[i,1] <- tempBat # Load the battery name for the consolidated data frame
+    
+    batRec <- condf %>% filter(Battery == tempBat) %>% filter(measure == "Conductance") %>% arrange(Date1) # Take the relevant battery record
+    
+    
+    findDf <- data.frame(matrix(nrow=nrow(batRec),ncol=4)) # Defining the individual battery data extractor
+    
+    names(findDf) <- c("Battery","Date1",secname,thirname)
+    
+    batRec$Condev <- 0 # Not required
+    findDf$Battery <- tempBat
+    
+    for(j in 1:(nrow(batRec)-1)){
+      
+      varPre <- batRec$Variable[j] # Take the preceeding value of Conductance
+      varSub <- batRec$Variable[j+1] # Take the subsequent value of Conductance
+      conDate <- batRec$Date1[j+1] # Take the date
+      conDiff <- varSub - varPre # Take the difference in conductance values
+      
+      if(varSub < varPre) { conThre <- (varPre * thresh * -1)  }else{ conThre <- varPre * thresh  } # Finding the threshold drop
+      
+      findDf[j+1,3] <- conDiff # Storing the difference value
+      findDf[j+1,4] <- "NormalDrop"
+      findDf$Date1[j+1] <- paste(conDate)
+      
+      if(conDiff < 0 & conDiff < conThre){ # Do any action only if the drop is greater than the threshold values
+        
+      
+        conValPre <- min(batRec %>% filter(Date1 < conDate) %>% select(Variable)) # minimum value of the pre-value should not be less than the current value
+        
+        # The below if condition is required to take care of any values which is the last point
+        
+        if(j+1 != nrow(batRec)){ 
+          
+          conValPost <- max(batRec %>% filter(Date1 > conDate) %>% select(Variable)) # Maximum value after the point
+          conRise <- conValPre + (conThre * thresh2) # Defining the point to which the ConValPost can rise
+          
+          if(varSub < conValPre & conValPost <= conRise){       
+            
+            findDf[j+1,4] <- "FailDrop"
+            
+          } # End of if value which checks if the drop is Failure indicating drop
+          
+        }else{
+          
+          conRise <- conValPre + (conThre * thresh2) # Defining the point to which the subsequent value can rise
+            
+          if(varSub <= conRise){       
+            
+            findDf[j+1,4] <- "FailDrop"
+            
+          } # End of if value which checks if the drop is Failure indicating drop
+          
+          
+          } # End of the else condition
+        
+        
+        
+        
+      } # End of IF condition which checks if the drop is greater than the stipulated threshold 
+      
+      
+      
+    } # Looping over the records for the selected battery
+    
+    findDf[1,2] <- paste(batRec$Date1[1]) # Paste the first date
+    
+    findDf[1,3] <- 0 # default the drop value for the first record
+    
+    findDf[1,4] <- "NormalDrop" # default the drop class for the first record
+    
+    conFailDrop <- findDf %>% filter(findDf[,4] == "FailDrop") # Taking a consolidated view of all the failure drops
+    
+    if(nrow(conFailDrop) > 0){ 
+      
+      failFeat[i,2] <- sum(conFailDrop[,3]) # Sum up all the failure drops
+      
+    }else{
+        
+      failFeat[i,2] <- 0 # The Failure drop would be 0
+      
+      } # End of the if condition to check for any Failure drop
+    
+    
+    confinDf <- rbind(confinDf,findDf) # Consolidating the DF value
+    
+  } # End of the for loop for running over the battery list
+  
+  
+  conresult <- list(result1 = failFeat,result2 = confinDf) # Returning the results
+  
+  
+} # End of the function
+
+
+
 ```
 

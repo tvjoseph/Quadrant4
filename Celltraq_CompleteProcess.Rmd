@@ -383,28 +383,33 @@ The process for creating the training set from the consolidated data set as defi
 2. The explanation of the variable names are as follows
       featDischarge : This is the mean value of the discharge values of the voltage. 
       conSlope : This is the slope of the conductance values. The slope is calculated by running a linear model for the                       conductance data
-      dodMin : This is the mean value of the depth of discharge values between the date ranges. 
-      Dod50
-      Dod85
-      Dodtop
-      conDrop
-      con50
-      con80
-      contop
-      voltSD
-      Battery
-      Counter
-      Bench1
-      Bench2
-      label
+      dodMin : This is the minimum value of the depth of discharge between the date ranges. 
+      Dod50 : This is the % of values between the date ranges analysed which show values less than 50% of dept of discharge
+      Dod85 : This is the % of values between the date ranges which have values between 50% and 85 %
+      Dodtop : This is the % of values which have dod values greater than 85%
+      conDrop : This is the % drop of, the mean value of conductance between two date ranges, from the maximum value within the same date range
+      con50 : This is the % of values within a date range which are less than 50% of value of the maximum conductance value of the battery
+      con80 : This is the % of values within a date range which is between 50% and 85% of the maximum conductance values
+      contop : This is the % of values within a date range which falls above 85% of the maximum conductance values of the battery
+      voltSD : This is the standard deviation of the voltage between the date ranges.
+      Battery : The unique id of the battery for which the features are extracted
+      Counter : A counter indicating the number of records which will be there for a battery. This is also an indicator of the period when the data is extracted. This will not be used for modelling
+      Bench1 : The benchmark date 1 which will be the lower bound date for the date range
+      Bench2 : The benchmark date 2 which will be the upper bound date for the date range
+      label : labels which will be created for the data frame
+      
 3. After creating the empty data frame for aggreagating data on the features, a new iterative loop is initiated to start the process of consolidating data. The process within the iterative loop is as follows
 
   3.1 : Each battery is listed one by one as per the iterative loop.
   3.2 : The function called "batFeat1" is run to get the training features. The process for "batFeat1" is explained seperately in the functions notebook - "Celltraq_NewFunctions.Rmd". One check which has to be done is that the battery which is being passed into the function has to be present in the consolidated data of the battery. If the battery is not present in the consolidated data frame then the function call will fail. Or this check has to be made in the calling function.
-
-
-
+  3.3 : The data which is returned from the function "batFeat1" will have 15 columns and the number of rows will be almost equal to the number of dates generated from the "dateLister" function used in "batFeat1"
   
+4. After the data from the "batFeat1"  function is extracted, a new columns for indicating the label of the data is created for the dataframe. The label feature is first initialised as "NA"
+
+5. The next steps is to do some labelling for the data set. We are making an assumption that the first 2/3 of the rows for a battery will be normal and the last 1/3 of the rows can be tested to check if failure is present. So finally when the training data set is created, the first 2/3 data will be taken with labels as "Normal Period". This will be joined with data from the problematic batteries with labels related to periods of failuer. This will be explained later on
+
+6. The last 1/3 of data will be labelled as "To-test" and this will form our testing data.
+7. Finally all the records are attached to the empty data frame created in step 1
 
 
 
@@ -427,30 +432,22 @@ for(i in 1: nrow(normalBats)){
   # Running the function batFeat1. 
 
 featTest2  <- batFeat1(bat2Exp,batConsolidated,3) # bat_newfeat5 > batConsolidated
+
+ # A counter is started 
   
-  
-  
-} # End of the iterative loop to go over the list of batteries
-
-
-```
-
-
-
-
-
-
- #
-  
-
-
 cou = 0
 
+# A new column for labels is created and set to NA
+
 featTest2$label <- NA # Setting up a label
+
+# Finding the first 2/3 of data and the rest data
 
 labRec <- round(nrow(featTest2) * 2/3)
 
 testRec <- nrow(featTest2) - labRec
+
+# Loops for creating labels
 
 for(j in 1:testRec){
   
@@ -463,14 +460,84 @@ for(k in (testRec+1):nrow(featTest2)){
   
 } # End of Normal period records for loop
 
+# Imputing mean values for NA values in conductance slope
 
 featTest2[is.na(featTest2$conSlope),2] <- mean(featTest2$conSlope,na.rm = TRUE) # Imputing mean values NA conslope values
 
-normalCon <- rbind(normalCon,featTest2) # Creating a consolidated dataframe
+
+
+trainCon <- rbind(trainCon,featTest2) # Creating a consolidated dataframe
 
 
 
-} # End of outer for loop
+} # End of the iterative loop to go over the list of batteries
+
+
+```
+
+# JMJPFU
+### 6-Mar-2017
+
+### Step 6 : Filtering out the Potential Failed cases
+
+This is a unique step for this problem. Since there were no labels for the data, we had to filter out the problem cases where the batteries were failing. The below process is to achieve that. Once the problem cases are filtered, we will filter out the relvant batteries from the "trainCon" dataframe created about in step 5 and then label those batteries seperately.
+
+The process for this step are as follows
+
+1. The first step is to take a list of batteries which needs to be analysed. This is taken from the consolidated battery data created from step-4. The unique list of batteries present in the consolidated battery data is taken.
+
+2. In the next step, a function called "batFeat" is run to extract features for the list of batteries generated from step1 above. The variables that have to be fed for the function are the "batList > which is the list of batteries in the consoldiated battery data frame" and "batConsolidated > which is the consolidated data for all batteries". The detailed process for "batFeat" function is explained in the "NewFunctions" Notebook. The output from this step is a dataframe with 65 variables. The number of rows will be equal to the number of batteries in the list of batteries supplied to the function
+
+3. After the above step, a third function is run on the output of step 2 to include some more additional features. This can be a redundant step. If we can consolidate this function with the "batFeat" function, we can avoid one step. The new function is named "batFeatAddn". The detailed process for this function is explained in the Newfunction notebook.
+
+4. The last step is to run another function called condropFeat to 
+
+
+
+```{r}
+
+# The below function creates the required details
+
+batList <- unique(batConsolidated %>% select(Battery,Plant,Site,String)) # bat_newfeat5 > batConsolidated
+
+# batList to be given as a dataframe
+
+batteryFeatures <- batFeat(batList,batConsolidated) # Creates the required Feature map
+
+# Run another function to create another set of features
+
+batteryFeatures <- batFeatAddn(batteryFeatures,batConsolidated)
+
+# Running another function to create the new set of features for condropFeat # batlist > batList
+
+conlist <- condropFeat(batList$Battery,batConsolidated,0.1,0.3) # thresh2 values of 1 resulted in a clean set of potential failure cases
+
+test1 <- conlist$result1 
+
+```
+
+
+test1 <- conlist$result1 
+test2 <- conlist$result2
+
+# test1 can be merged with the existing feature list
+
+batteryFeatures <- merge(batteryFeatures,test1,all.x = TRUE)
+
+# Selecting a limited list of features
+
+batFeatTrain <- batteryFeatures %>% select(Battery,PD1sl,PD2sl,PD3sl,PD4sl,PD5sl,PD6sl,PD7sl,PD8sl,PD9sl,PD10sl,Condrop,Dodtop,Dod80,Dod50,contop,con80,con50,FailDrop)
+
+
+
+
+ 
+  
+
+
+
+
+
 
 
 
