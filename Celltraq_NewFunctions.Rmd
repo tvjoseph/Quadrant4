@@ -1475,9 +1475,44 @@ This function is to do a further filter on the conducatance value to see if any 
 
 Process for condropFeat function
 1. The variables that are passed to this function are the following "batlist > This is a list of battery ids. Note that this is not a dataframe","condf > The consolidated dataset which is passed","thresh : This is a threshold value passed as a parameter","thresh2 > A second threshold value passed as a parameter".
-2. Two empty data frames are created. The first one "confinDf > has 4 columns and lists all the values for the consolidated dataset. This is only for checking.". The second one "failFeat > This has two columns and this data frame has only values equal to the number of batteries in the list. This is the more important list"
-3. The names of the two data frames are then defined.
-4. An iterative step is initiated for all the batteries in the list.
+
+# JMJPFU
+### 7-Mar-2017
+
+2. The basic idea behind this function is as follows
+  2.1 : Take two adjacent conductance values which are adjacent from a time stamp perspective. Let us call the first one current value and the second one later value
+  2.2 : Look at the later value and see if there is a drop in conductance value from the current value
+  2.3 : If there is a drop, is the drop greater than the current value multiplied by a threshold value
+  2.4 : If the drop is greater than the threshold value, look at other values if any, prior to the current value in time(let us call them "pre values""), and look at the minimum value attained in those prior readings.
+  2.5 : Also look at all the values after the later value ( let us call it "post values""), as a function in time, and identify the maximum value attained for those points.
+  2.6 : Verify if the maximum value of the "post values" is lesser than the minimum value of the "pre values" minus a threshold value.
+  2.7 : If the above condition is met, then the drop is a potential drop which can lead to failure of batteries.
+  2.8 : Consolidate all such drops accross all the conductance values for a battery and then calculate the total failure drops.
+  2.9 : The idea is, more such failure drops, higher is the probability that the battery is failing.
+  
+3. Two empty data frames are created. The first one "confinDf > has 4 columns and lists all the values for the consolidated dataset. This is only for checking.". The second one "failFeat > This has two columns and this data frame has only values equal to the number of batteries in the list. This is the more important list"
+4. The names of the two data frames are then defined.
+5. An iterative step is initiated for all the batteries in the list. 
+6. After the iterative step is initiated, all basic details of the battery like the battery id, all conductance records of the battery etc are extracted
+7. An empty data frame similar to the 4 column data frame is also created and the first column is defaulted with the battery id.
+8. Another iterative loop is initiated to loop over all the conductance values of the battery till the penultimate value.
+9. Inside the iterative loop the following variables are defined "varPre - Current value of conductance", "varSub - Immediate next value of conductance","conDate > The time stamp of the immdiate next value","conDiff > The difference in value between the current value and immediate next value"
+10. A validation step is done to check if the immediate next value ("varSub") is less than the current value ("varPre"). If it is so, then a threshold value "conThre" is defined which is the "varPre x threshold value passed x -1". The rationale for multiplying with -1 is for comparison purpose later. If "varSub" is greater than "varPre" then the threshold value is "varPre x threshold value passed".
+11 . The data frame created in step 7 is defaulted with the "conDiff" value, a default classification "Normal Drop" and "conDate" values.
+12. Another validation step is initiated to check if the "conDiff" is less than 0 ( Indicating that the later value is lesser than the current value) and the "conDiff" is lesser than the threshold value "conThre" ( Lesser because since conThre is also defaulted with a -ve value so a larger drop of conDiff will be lesser than conThre).
+13. If the above condition is met, then the minimum value of all prior values of the  current conductance is found out ("conValPre").
+14. In addition the maximum value of all the subsequent values of conductance from the "varSub" variable is also found out("conValPost").
+15. Another validation step is made to check if the "varSub" value is not the last value of conductance. If this is true a new variable called "conRise" is defined which is the sum of "conValPre" + ("conThre" x 'threh2'). The value in the bracket will be a negative value. So in effect this sum will result in a value which is lesser than the "conValPre" conductance value. This new value is a threshold value to check if the maximum value "conValPost" dosent go over this threshold value.
+16. The next task is to classify a drop as "Failure Drop" if the drop meets all the conditions i.e
+   1. The "varSub" is less than "varPre" and 
+   2. "conValPost" is lesser or equal to "conRise"
+17. As seen above in step 15, there was an if condition to check the "varSub" value is not the last value. Now the "else" condition to this i.e if "varSub" is the last conductance value, then if "varSub" is less than or equal to "conRise" then the drop can be classified as "FailDrop"
+18. The above process is continued for all the conductance value of the battery taken first. Once all values are looped over the first row of the data frame is defaulted with default values.
+19 . The next task is to filter out only the "Failure Drop" cases and to quantify them. 
+20 . A check is done to verify if the battery has any "Failure Drop" cases. If it is so, the data frame (failFeat) is updated with the sum of all the "Fail Drop" values. If there arent any "Fail Drop" cases, then "0" is updated for "failFeat" data frame.
+21 . There are two return values for this function. 
+  1. The consolidated data frame with only the faildrop values of each battery. ( 1 row for each battery)
+  2. A larger data frame which has all the conductance values for each battery and its subsequent drop and classification. ( Multiple rows for each battery)
 
 
 
@@ -1513,7 +1548,7 @@ condropFeat <- function(batlist,condf,thresh,thresh2){
     
     names(findDf) <- c("Battery","Date1",secname,thirname)
     
-    batRec$Condev <- 0 # Not required
+    #batRec$Condev <- 0 # Not required
     findDf$Battery <- tempBat
     
     for(j in 1:(nrow(batRec)-1)){

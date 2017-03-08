@@ -490,7 +490,10 @@ The process for this step are as follows
 
 3. After the above step, a third function is run on the output of step 2 to include some more additional features. This can be a redundant step. If we can consolidate this function with the "batFeat" function, we can avoid one step. The new function is named "batFeatAddn". The detailed process for this function is explained in the Newfunction notebook.
 
-4. The last step is to run another function called condropFeat to 
+4. The last step is to run another function called condropFeat. This function is to identify those cases which have failure indicating drop in conductance. There are two outputs from this function. 
+  1. One is a data frame with number of records as there are batteries. There are two columns for this dataframe. One column       is the battery id and the second column is the consolidated fail drop value. The number of rows of this data frame will be equal to the number of batteries in the list
+  2. The second data frame is a consolidated data set with all the values of conductance along with the classification            whether the drop is a normal or failed drop etc. This data frame will have 4 columns and will have multiple rows for each battery. The number of rows for each battery will be equal to the number of conductance values present for each battery.
+  
 
 
 
@@ -512,21 +515,23 @@ batteryFeatures <- batFeatAddn(batteryFeatures,batConsolidated)
 
 conlist <- condropFeat(batList$Battery,batConsolidated,0.1,0.3) # thresh2 values of 1 resulted in a clean set of potential failure cases
 
-test1 <- conlist$result1 
-
-```
-
+# Getting the individual data frames from the function
 
 test1 <- conlist$result1 
 test2 <- conlist$result2
 
-# test1 can be merged with the existing feature list
+# The condrop features to be merged with existing features
 
 batteryFeatures <- merge(batteryFeatures,test1,all.x = TRUE)
 
 # Selecting a limited list of features
 
 batFeatTrain <- batteryFeatures %>% select(Battery,PD1sl,PD2sl,PD3sl,PD4sl,PD5sl,PD6sl,PD7sl,PD8sl,PD9sl,PD10sl,Condrop,Dodtop,Dod80,Dod50,contop,con80,con50,FailDrop)
+
+```
+
+
+
 
 
 
