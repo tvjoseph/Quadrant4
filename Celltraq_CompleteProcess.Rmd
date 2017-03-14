@@ -530,31 +530,100 @@ batFeatTrain <- batteryFeatures %>% select(Battery,PD1sl,PD2sl,PD3sl,PD4sl,PD5sl
 
 ```
 
+### Step 7 : Filtering the failed cases
+
+The below is the process for filtering the failed cases of batteries. 
+
+1. Once the training set for the battery features are created, a new feature called label is created and defaulted with "NA" values.
+2. To identify the failed cases, the filter condition is then applied.
+3. To get the list of the normal batteries, a difference of the battery list with the failed batteries is done.
+4. The normal batteries are taken seperately
+5. The respective labels of the failed and normal batteries are done seperately and then both the data sets are merged.
+
+```{r}
+
+# Create new feature for the labels
+
+batFeatTrain$label <- NA
+
+# Filtering based on our criteria and naming the labels
+
+class_Failed <- batFeatTrain %>% filter(FailDrop !=0,Condrop < 0.8,Dod80 > 10,con80 > 3)
+
+# First find the list of batteries that should be in normal
+
+bat_normal <- setdiff(batFeatTrain$Battery,class_Failed$Battery) # Finding difference between the two sets
+
+class_normal <- batFeatTrain %>% filter(Battery %in% bat_normal)
+
+# Let us label first
+
+class_Failed$label <- "Failed"
+class_normal$label <- "Normal"
+
+# Let us join them up
+
+batFeatTrain <- rbind(class_Failed,class_normal)
+
+```
+
+### Step 8 : Labelling the failed cases with appropriate labels
+
+The next task is to label the failed cases with appropriate labels.
 
 
 
 
+```{r}
+# Finding the list of batteries which are failed
 
+failedBats <- batFeatTrain %>% filter(label == "Failed") %>% select(Battery)
+normalBats <- batFeatTrain %>% filter(label == "Normal") %>% select(Battery)
 
- 
+# Creating a consolidated data frame for training for all Failed cases
+
+failCon <- data.frame(matrix(nrow=0,ncol=16))
+
+names(failCon) <- c("featDischarge","conSlope","dodMin","Dod50","Dod85","Dodtop","conDrop","con50","con80","contop","voltSD","Battery","Counter","Bench1","Bench2")
+
+for(i in 1:nrow(failedBats)){
   
+bat2Exp <- failedBats$Battery[i]
+
+featTest2  <- batFeat1(bat2Exp,batConsolidated) # bat_newfeat5 > batConsolidated
 
 
+cou = 0
 
+featTest2$label <- NA # Setting up a label
 
+if(nrow(featTest2) < 8){endPoint <- nrow(featTest2)}else{endPoint <- 8} # Label the sets only upto 8 periods
 
+# Start a for loop for labelling
 
+for(j in 1:endPoint){
+  
+  cou = cou + 1 # Starting a counter
+  if(cou==1){featTest2$label[j] <- "Failure_Point"}else{
+    
+    label <- paste0((cou-1),"_Period_before_Failure")
+    featTest2$label[j] <- label
+  }
+  
+} # End of innner for loop
 
+featTest2[is.na(featTest2$label),16] <- "Normal_Period"
 
+featTest2[is.na(featTest2$conSlope),2] <- mean(featTest2$conSlope,na.rm = TRUE) # Imputing mean values NA conslope values
 
+failCon <- rbind(failCon,featTest2) # Creating a consolidated dataframe
+  
+  
+} # End of outer for loop
 
+```
 
-
-
-
-
-
-
+After this the data set is ready for training & model creation. Thank you Lord for enabling me to complete the end to end process.
 
 
 ### Points to be carried over
@@ -574,5 +643,6 @@ batFeatTrain <- batteryFeatures %>% select(Battery,PD1sl,PD2sl,PD3sl,PD4sl,PD5sl
 9. Decide weather client specific model has to be created or a consolidated model for all data.
 
 
-# Tomorrow
-1. start with line 444 in the NewFunction notebook
+# JMJPFU
+### 13-Mar-2017
+1 .Today will implement the SVM and its tuning as a practice on the dataset

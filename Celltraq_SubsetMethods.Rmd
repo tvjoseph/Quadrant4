@@ -1,0 +1,95 @@
+---
+title: "JMJPFU-SubsetPlus"
+output: html_notebook
+---
+
+# JMJPFU
+### 14-Mar-2017
+
+This notebook is to demonstrate many allied topics which were not tried out earlier. The topics which will be tried out are the following
+
+1. Best subset selection
+2. Forward selection
+3. Backward selection
+4. Ridge Regression & Lasso
+5. PCA
+
+Let us get started
+
+### Initial tasks : Loading the library functions
+
+```{r}
+library(leaps)
+library(caret)
+library(ggplot2)
+library(dplyr)
+```
+
+### Method 1 : Best subset selection
+
+Let us do best subset selection and then fit the model with some of the most successful model which were create earlier. 
+
+```{r}
+# Fitting with all the models
+
+subFull <- regsubsets(label~.,xTrain)
+
+summary(subFull)
+
+# Giving the variable nvmax gives the maximum variables to be included
+
+subFull <- regsubsets(label~.,xTrain,nvmax = 11)
+
+regSummary <- summary(subFull)
+```
+
+Let us now get some of the finer variables from the model.
+
+```{r}
+names(regSummary)
+
+# Getting rsq
+
+regSummary$rsq
+
+# Getting rss
+
+regSummary$rss
+
+# Getting adjusted R2
+
+regSummary$adjr2
+
+# Gettging other methods also
+
+regSummary$cp
+
+regSummary$bic
+
+
+```
+
+Let us do some plotting of the error terms with respect to the number of variables
+
+```{r}
+par(mfrow=c(2,2))
+
+plot(regSummary$rss,xlab="Number of variables",ylab="RSS",type="l")
+
+plot(regSummary$adjr2,xlab="Number of variables",ylab="Adjusted R2",type = "l")
+```
+
+
+By looking at the above figures, we can see that the RSS goes down with the number of variables . However afer 6 variables it is a constant plateau. This probably is an indicator that we can try a model with the best 6 variables 
+
+Similarly looking at the adjusted R2, we can see that it increases monotonically. However the rise after 6 variable model is more muted.
+
+We can try modelling with the best 6 variable model after we experiment with forward selection and backward selection methods.
+
+Let us try out the forward selection or the backward selection methods.
+
+### Step 2 : Forward Selection of variables
+
+
+
+

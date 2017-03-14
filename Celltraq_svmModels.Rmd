@@ -1,0 +1,42 @@
+---
+title: "JMJPFU-svmModel"
+output: html_notebook
+---
+
+# JMJPFU
+### 13-Mar-2017
+
+This notebook will detail out the SVM implementation and its nuances. Will try out the following
+
+1. Base SVM model
+2. SVM model with tune grid
+3. Demonstrate this model with transformations
+4. Visualisaation of this model with class related distributions and get some intuitions.
+
+
+### Initial tasks : Seeting up the library functions
+
+```{r}
+library(caret)
+library(ggplot2)
+library(dplyr)
+```
+
+
+### Step 1 : Setting the train-Control and training the models.
+
+
+```{r}
+trainCon <- trainControl(method="repeatedcv",number=10,repeats=3)
+
+set.seed(7)
+
+metrics = "accuracy"
+
+svmModel <- train(label~.,data=xTrain,method='svmRadial',metric=metrics,trControl=trainCon)
+
+
+```
+
+
+
