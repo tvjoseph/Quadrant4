@@ -90,6 +90,21 @@ Let us try out the forward selection or the backward selection methods.
 
 ### Step 2 : Forward Selection of variables
 
+# JMJPFU
+### 16-Mar-2017
+
+```{r}
+
+batForward <- regsubsets(label~.,data=xTrain,nvmax = 11,method="forward")
+
+summary(batForward)
+
+batBack <- regsubsets(label~.,data=xTrain,nvmax = 11,method="backward")
+
+summary(batBack)
+
+```
+
 
 
 

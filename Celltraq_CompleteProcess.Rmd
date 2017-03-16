@@ -25,12 +25,11 @@ This is the end to end process with all the scripts for creating a prediction mo
 In this step all the library files required for the end to end process are loaded
 
 ```{r}
+
 library(dplyr)
 library(ggplot2)
 library(caret)
 library(caretEnsemble)
-
-
 
 ```
 
