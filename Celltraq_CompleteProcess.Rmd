@@ -646,3 +646,13 @@ After this the data set is ready for training & model creation. Thank you Lord f
 # JMJPFU
 ### 13-Mar-2017
 1 .Today will implement the SVM and its tuning as a practice on the dataset
+
+# JMJPFU
+### 19-Mar-2017
+This is the new line created to test the Celltraq process on my personal system
+
+```{r}
+library(caret)
+getwd()
+```
+
