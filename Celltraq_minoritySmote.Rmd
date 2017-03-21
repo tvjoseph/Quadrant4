@@ -1,0 +1,14 @@
+---
+title: "JMJPFU-MinorityResampling"
+output: html_notebook
+---
+
+# JMJPFU
+### 17-Mar-2017
+
+https://www.analyticsvidhya.com/blog/2017/03/imbalanced-classification-problem/?utm_source=feedburner&utm_medium=email&utm_campaign=Feed%3A+AnalyticsVidhya+%28Analytics+Vidhya%29
+
+
+This is a notebook for creating Minority resampling techniques. The methods in the above link will be a good method to try out the re-sampling techniques.
+
+

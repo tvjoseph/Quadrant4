@@ -15,6 +15,8 @@ library(xgboost)
 library(Matrix)
 library(data.table)
 library(Rtsne)
+library(caret)
+library(dplyr)
 ```
 
 
@@ -54,6 +56,8 @@ Let us now try out a tSNE ( t-Distributed Stochastic Neighbour Embedding) visual
 
 Reference Link : https://rpubs.com/flyingdisc/practical-machine-learning-xgboost
 
+Reference Link : https://www.analyticsvidhya.com/blog/2016/01/xgboost-algorithm-easy-steps/
+
 
 ```{r}
 tsne <- Rtsne(as.matrix(xTrainohe),check_duplicates = FALSE,pca = TRUE,perplexity = 30,theta = 0.5,dims=2)
@@ -80,9 +84,11 @@ Looking at the 2d embedding we can see some clusters being formed.
 
 ```{r}
 
-rand <- sample(1:736,500)
+rand <- sample(1:736,1)
 
-write.csv(rand,"BibleRead.csv")
+#write.csv(rand,"BibleRead.csv")
+
+sample(1:736,1)
 
 ```
 
@@ -169,3 +175,112 @@ Thank you Lord for the progress so far in the xgboost model.
 ### 6-Feb-2017
 
 We will pursue with more experiments with xgboost later on. Let us stop the methods for now and then continue with another method of prediction with another algorithm.
+
+# JMJPFU
+### 20-Mar-2017
+
+We will embark on a detailed data science journey document with XGboost. To embark on the journey we will first do some experiments with some methods and then get on to the documentation phase.
+
+### Experiments 1 : Zero variance
+
+```{r}
+
+# Near zero variance experiments
+
+zero.var <- nearZeroVar(xTrain[,1:11],saveMetrics = TRUE)
+
+zero.var
+
+
+```
+
+So as seen "Dod50" and "con50" variables have near zero variance and therefore can be excluded from the model after some after thought.
+
+### Experiments 2 : Plot of relationship of features with Outcome
+
+# JMJPFU
+#### 21-Mar-2017:
+
+Continuing with experiment 2 to analyse the relationship of features with outcome.
+
+```{r}
+featurePlot(xTrain[,1:11],factor(y),"strip")
+
+
+```
+
+As we can see, the data has different distribution for each of the feature. However, we need to do scaling of the variables and see how they look like with the scaled features.
+
+
+### Data Science Safari : ##################
+
+Now we will start the data science safari and explore the inner meaning of distributions processes and its connections with the model. The below is the path we will tread
+
+I . Data Cleaning
+II. Statistical Exploration
+  1. Look at the distribution of the raw variables
+  2. Understand the process which generated the data
+  3. Get an intuition on the probability model which might have generated the data.
+  4. Get some descriptive statistics ( Mean, Median, Mode, SD) for each of the variable
+  5. Get histograms, density plots etc for each variable.
+  6. Get to know the distributions of the variables and compare it with the intuitions we build about the process which generated data
+  7. Look at any linearity assumptions of data
+  8. Look at the plots of each variable with respect to the response variables
+  9. Look at the correlation plots with respect to the variables
+  10. Look at the class distribution of the classes. Get clues on any minority sampling techniques to be used
+  11. Get intuitions on features that needs to be developed in the context of the business problem.
+  
+III. Feature Engineering
+Iv . Modelling
+V. Deployment.
+
+## Safari : Statistical Exploration
+
+Let us now look at the distribution of the raw variables of multiple samples
+
+The process to do this is as follows
+1. Filter out the data set of a battery
+2. Create multiple histogram for each variable
+3. Study the distributions of each variable accross multiple samples.
+4. Write down the intuitions
+
+```{r}
+# Filtering out the battery
+
+expBat <- unique(batConsolidated$Battery)[1]
+expBat
+
+# Now filtering out the relevant data for this battery
+
+batData <- batConsolidated %>% filter(Battery == expBat)
+
+# Now filtering out the relevant variable data
+
+voltData <- batData %>% filter(measure == "Voltage")
+curData <- batData %>% filter(measure == "Current")
+conData <- batData %>% filter(measure == "Conductance")
+voltempData <- batData %>% filter(measure == "Volttemp")
+charData <- batData %>% filter(measure == "Charge" )
+disData <- batData %>% filter(measure == "Discharge")
+dodData <- batData %>% filter(measure == "DOD")
+
+# Now to viaulise the data
+
+par(mfrow = c(4,2))
+a = hist(voltData$Variable, main = "Voltage");plot(a);abline(v=mean(voltData$Variable),col="red")
+b= hist(curData$Variable, main = "Current");plot(b);abline(v=mean(curData$Variable),col="red")
+c= hist(conData$Variable, main = "Conductance");plot(c);abline(v=mean(conData$Variable),col="red")
+d = hist(voltempData$Variable, main = "NormVoltage");plot(d);abline(v=mean(voltempData$Variable),col="red")
+e = hist(charData$Variable, main = "Charge" );plot(e);abline(v=mean(charData$Variable),col="red")
+f = hist(disData$Variable, main = "Discharge");plot(f);abline(v=mean(disData$Variable),col="red")
+g = hist(dodData$Variable, main = "DOD");plot(g);abline(v=mean(dodData$Variable),col="red")
+
+```
+
+```{r}
+unique(batData$measure)
+```
+
+
+
+  
