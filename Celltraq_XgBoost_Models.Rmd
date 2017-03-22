@@ -17,6 +17,7 @@ library(data.table)
 library(Rtsne)
 library(caret)
 library(dplyr)
+library(ggplot2)
 ```
 
 
@@ -281,6 +282,124 @@ g = hist(dodData$Variable, main = "DOD");plot(g);abline(v=mean(dodData$Variable)
 unique(batData$measure)
 ```
 
+# JMJPFU
+### 22-Mar-2017
+
+Today we will try to approach the exploratory stage from a Bayesian stand point and then try to learn and get some assumptions of the model. Will try to extrapolate this assumptions and do some statistical learning from the data.
+
+# Assumptions to the model : Naive Bayes Assumption
+
+The first assumptions we are making to the model is that each of the varaible are independent of the other ( Which is obviously an erraneous assumptions. However as a first pass for modelling and learning we will go by this assumption.).
 
 
-  
+### Step 1 : Look at distributions of each variable
+
+Since each of the variables are numeric, let us take some sample variables and get some of the essential stats behind each of them like
+
+1. Mean of the distribution
+2. Standard deviation
+
+```{r}
+
+# Filtering each battery
+expBat <- unique(batConsolidated$Battery)[1]
+expBat
+# Filtering some relevant data and getting their descriptive stats
+statData <- batConsolidated %>% filter(Battery == expBat) %>% group_by(measure) %>% summarise(Mean = mean(Variable),SD = sd(Variable))
+
+# Transposing the data
+temp <- t(statData)
+
+# Creating an empy data set
+
+statDat <- data.frame(matrix(nrow=0,ncol=3))
+
+names(statDat) <- c("Battery","Mean","SD")
+
+```
+
+The above can be come too complicated at this point of time. For the time being, let us just take only one variable
+
+```{r}
+
+for(i in 1:length(unique(batConsolidated$Battery))){
+# Filtering each battery
+expBat <- unique(batConsolidated$Battery)[i]
+#expBat
+
+# Filtering the relevant data and gathering descriptive stats
+
+staData <- batConsolidated %>% filter(Battery == expBat & measure == "Voltage")%>% summarise(Battery = unique(Battery),Mean = mean(Variable),SD = sd(Variable))
+
+# Consolidating the data
+
+statDat <- rbind(statDat,staData)
+
+}
+
+## Will divide the batteries into two sets. 
+
+statData2 <- statDat %>% filter(Mean < 10)
+statData12 <- statDat %>% filter(Mean > 10)
+
+```
+
+Now that we have the means and standard deviation let us plot the means in a histogram and take the mean value of the means
+
+```{r}
+par(mfrow = c(1,2))
+
+plot(density(statData2$Mean),main = "Mean 2")
+abline(v = mean(statData2$Mean),col="red")
+
+plot(density(statData12$Mean),main = "Mean 12")
+abline(v = mean(statData12$Mean),col="red")
+
+```
+
+Now that we have taken the histogram of the collection of batteries, let us look at each of the values and look of each of the battery and compare with the group mean and then get some inferences
+
+# Calculating the likelihood of the values
+In addition for each battery let us also look at the likely hood and then plot the likelihood
+
+
+```{r}
+# Filtering one battery at a time
+i = 1
+expBat <- unique(batConsolidated$Battery)[i]
+
+# Taking the relevant data
+con1 = sqrt(2*3.14)
+con2 = 1 /(con1 * statDat[i,3] )
+con4 = 1/(2*statDat[i,3]^2)
+
+statData1 <- batConsolidated %>% filter(Battery == expBat & measure == "Voltage") %>% mutate(con3 = (Variable - statDat[i,2]),con5 = con3^2) %>% mutate(LPDF = (con2 * exp(-con5*con4) ) )
+
+# Visualising the same
+
+par(mfrow = c(1,2))
+
+plot(density(statData1$Variable),main = "Voltage");abline(v=statDat[i,2],col="red")
+
+plot(density(statData1$LPDF),main = "Likelihood");abline(v=statDat[i,2],col="red")
+
+```
+
+Forget about the likelihood for now. It dosent make sense right now
+
+### Approach 2 : With the training data set
+
+Let us take a different approach. Let us now go with the training data set and then apply bayes rule along with the distribution of the classes
+
+
+### Step 1 : Finding the class probabilities
+
+```{r}
+
+# Class probabilities
+
+classProb <- data.frame(prop.table(table(xTrain$label)))
+
+```
+
+
