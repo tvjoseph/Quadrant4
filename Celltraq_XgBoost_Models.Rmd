@@ -402,4 +402,22 @@ classProb <- data.frame(prop.table(table(xTrain$label)))
 
 ```
 
+# JMJPFU
+### 23-Mar-2017
 
+Today we will continue with the Bayesian Inference and do the inferential studies.
+
+```{r}
+head(xTrain)
+```
+
+
+The model is as drawn in the Bayesian Network model. Now we will have to populate the conditional values for this network. There are different thoughts on the data itself. As the xTrain model is a simulated data set, it might not present the right picture. However, what we have to do is work out the sample model with this data. Get some intuitions and then do improvements with the real data set. 
+
+Let us try to bootstrap with the real data set and try to learn from the conditional probabilities.
+
+Some of the learnings which could be applied
+
+1. For continuous variables - We can work out the approximate distribution and assume the hyper parameters based on the 
+
+### Step 1 : Defining the 
