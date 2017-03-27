@@ -59,6 +59,8 @@ Reference Link : https://rpubs.com/flyingdisc/practical-machine-learning-xgboost
 
 Reference Link : https://www.analyticsvidhya.com/blog/2016/01/xgboost-algorithm-easy-steps/
 
+Reference Link : http://jamesmarquezportfolio.com/ # This is really good one
+
 
 ```{r}
 tsne <- Rtsne(as.matrix(xTrainohe),check_duplicates = FALSE,pca = TRUE,perplexity = 30,theta = 0.5,dims=2)
@@ -420,4 +422,32 @@ Some of the learnings which could be applied
 
 1. For continuous variables - We can work out the approximate distribution and assume the hyper parameters based on the 
 
-### Step 1 : Defining the 
+# JMJPFU
+### 24-Mar-2017 : Continuing with the Statistical Intuition of a data analysis.
+
+### Step 1 : Start from the labels and looking at the Distributions of various classes
+
+NormalPeriod         FailurePoint         PeriodbeforeFailure1 PeriodbeforeFailure2 PeriodbeforeFailure3 PeriodbeforeFailure4
+PeriodbeforeFailure5 PeriodbeforeFailure6 PeriodbeforeFailure7
+
+```{r}
+## Normal - DODmin
+
+classDistribution <- xTrain %>% filter(label=="NormalPeriod")
+
+par(mfrow = c(3,4))
+
+plot(density(classDistribution$dodMin),main = "dodMin")
+plot(density(classDistribution$Dod50),main = "Dod50")
+plot(density(classDistribution$Dod85),main = "Dod85")
+plot(density(classDistribution$Dodtop),main = "Dodtop")
+plot(density(classDistribution$conDrop),main = "conDrop")
+plot(density(classDistribution$con50),main = "con50")
+plot(density(classDistribution$con80),main = "con80")
+plot(density(classDistribution$contop),main = "contop")
+plot(density(classDistribution$voltSD),main = "voltSD")
+plot(density(classDistribution$conSlope),main = "conSlope")
+plot(density(classDistribution$featDischarge),main = "featDischarge")
+
+```
+

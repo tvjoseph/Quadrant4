@@ -1,0 +1,12 @@
+---
+title: "JMJPFU-RPackage"
+output: html_notebook
+---
+
+#JMJPFU
+### 24-Mar-2017
+
+This is a notebook which explains the usage of creating a software package in R. The below link explains the details.
+
+https://www.analyticsvidhya.com/blog/2017/03/create-packages-r-cran-github/?utm_source=feedburner&utm_medium=email&utm_campaign=Feed%3A+AnalyticsVidhya+%28Analytics+Vidhya%29
+
